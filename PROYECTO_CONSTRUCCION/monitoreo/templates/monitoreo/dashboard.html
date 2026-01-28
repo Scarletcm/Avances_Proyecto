@@ -1,0 +1,799 @@
+{% extends "monitoreo/base.html" %}
+
+{% block title %}Dashboard - Sistema de Monitoreo{% endblock %}
+{% block page_title %}Dashboard de Monitoreo{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Estilos específicos del dashboard */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid var(--secondary-color);
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        transform: translateY(-5px);
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin: 0.5rem 0;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: var(--text-light);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-change {
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+    }
+
+    .stat-change.positive {
+        color: var(--success-color);
+    }
+
+    .stat-change.negative {
+        color: var(--danger-color);
+    }
+
+    .stat-card.danger {
+        border-left-color: var(--danger-color);
+    }
+
+    .stat-card.warning {
+        border-left-color: var(--warning-color);
+    }
+
+    .stat-card.success {
+        border-left-color: var(--success-color);
+    }
+
+    /* Sección de análisis de video */
+    .video-analysis-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .video-container {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .video-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .video-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+
+    .camera-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--success-color);
+        animation: pulse 2s infinite;
+    }
+
+    .status-indicator.offline {
+        background: var(--danger-color);
+        animation: none;
+    }
+
+    /* Pantalla de video (simulada) */
+    .video-screen {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .video-screen.analyzing {
+        animation: pulse 1s infinite;
+    }
+
+    .video-frame-info {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: rgba(0, 0, 0, 0.7);
+        color: #10b981;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-family: 'Courier New', monospace;
+    }
+
+    .video-controls {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .btn {
+        flex: 1;
+    }
+
+    /* Panel de análisis */
+    .analysis-panel {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .analysis-header {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .analysis-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-bottom: 0.5rem;
+    }
+
+    .analysis-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        color: var(--text-light);
+    }
+
+    /* Resultado del análisis */
+    .analysis-result {
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background: var(--light-bg);
+        border-radius: 8px;
+        border-left: 4px solid var(--secondary-color);
+    }
+
+    .analysis-result.suspicious {
+        background: rgba(220, 38, 38, 0.1);
+        border-left-color: var(--danger-color);
+    }
+
+    .analysis-result.normal {
+        background: rgba(16, 185, 129, 0.1);
+        border-left-color: var(--success-color);
+    }
+
+    .result-label {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .result-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .result-description {
+        font-size: 0.9rem;
+        color: var(--text-dark);
+    }
+
+    .confidence-bar {
+        width: 100%;
+        height: 8px;
+        background: var(--border-color);
+        border-radius: 4px;
+        margin-top: 0.75rem;
+        overflow: hidden;
+    }
+
+    .confidence-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--secondary-color) 0%, var(--success-color) 100%);
+        width: 85%;
+        animation: fillBar 1.5s ease-in-out;
+    }
+
+    @keyframes fillBar {
+        from {
+            width: 0;
+        }
+    }
+
+    .confidence-text {
+        font-size: 0.8rem;
+        color: var(--text-light);
+        margin-top: 0.5rem;
+    }
+
+    /* Matriz de detección (Heatmap) */
+    .detection-matrix {
+        background: var(--light-bg);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    .matrix-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 0.75rem;
+    }
+
+    .heatmap {
+        width: 100%;
+        height: 100px;
+        background: linear-gradient(90deg, 
+            #10b981 0%, 
+            #84cc16 25%, 
+            #f59e0b 50%, 
+            #f87171 75%, 
+            #dc2626 100%);
+        border-radius: 6px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .heatmap-pointer {
+        position: absolute;
+        width: 3px;
+        height: 100%;
+        background: white;
+        left: 65%;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        animation: movePointer 3s ease-in-out infinite;
+    }
+
+    @keyframes movePointer {
+        0%, 100% { left: 20%; }
+        50% { left: 80%; }
+    }
+
+    /* Comportamientos detectados */
+    .behaviors-list {
+        margin-top: 1rem;
+    }
+
+    .behavior-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem;
+        background: var(--light-bg);
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .behavior-check {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .behavior-check.detected {
+        background: var(--danger-color);
+    }
+
+    .behavior-check.not-detected {
+        background: var(--success-color);
+    }
+
+    /* Sistema de alertas en vivo */
+    .live-alerts {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .alerts-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .alerts-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+
+    .alert-live-badge {
+        background: var(--danger-color);
+        color: white;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        animation: pulse 2s infinite;
+    }
+
+    .alert-item {
+        padding: 1rem;
+        background: var(--light-bg);
+        border-left: 4px solid var(--danger-color);
+        border-radius: 6px;
+        margin-bottom: 0.75rem;
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+
+    .alert-icon-box {
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+
+    .alert-content {
+        flex: 1;
+    }
+
+    .alert-time {
+        font-size: 0.8rem;
+        color: var(--text-light);
+    }
+
+    .alert-text {
+        font-weight: 600;
+        color: var(--danger-color);
+        margin: 0.25rem 0;
+    }
+
+    .alert-description {
+        font-size: 0.9rem;
+        color: var(--text-dark);
+    }
+
+    /* Spinner de análisis */
+    .spinner {
+        border: 3px solid rgba(59, 130, 246, 0.1);
+        border-top: 3px solid var(--secondary-color);
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Responsividad */
+    @media (max-width: 1200px) {
+        .video-analysis-section {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="animate-fade">
+    <!-- Indicadores principales (KPIs) -->
+    <div class="dashboard-grid">
+        <!-- KPI: Cámaras Activas -->
+        <div class="stat-card">
+            <div class="stat-icon">📹</div>
+            <div class="stat-label">Cámaras Activas</div>
+            <div class="stat-value">12</div>
+            <div class="stat-change positive">↑ Todas operativas</div>
+        </div>
+
+        <!-- KPI: Alertas Hoy -->
+        <div class="stat-card danger">
+            <div class="stat-icon">🚨</div>
+            <div class="stat-label">Alertas Generadas (Hoy)</div>
+            <div class="stat-value">3</div>
+            <div class="stat-change negative">↑ 2 más que ayer</div>
+        </div>
+
+        <!-- KPI: Eventos Registrados -->
+        <div class="stat-card warning">
+            <div class="stat-icon">📋</div>
+            <div class="stat-label">Eventos Registrados (Mes)</div>
+            <div class="stat-value">47</div>
+            <div class="stat-change negative">↑ Tendencia al alza</div>
+        </div>
+
+        <!-- KPI: Zona de Mayor Riesgo -->
+        <div class="stat-card">
+            <div class="stat-icon">📍</div>
+            <div class="stat-label">Zona de Mayor Riesgo</div>
+            <div class="stat-value">Centro</div>
+            <div class="stat-change">8 eventos esta semana</div>
+        </div>
+    </div>
+
+    <!-- SECCIÓN DE ANÁLISIS DE VIDEO EN TIEMPO REAL  -->
+    <div class="video-analysis-section">
+        <!-- Panel de video -->
+        <div class="video-container">
+            <div class="video-header">
+                <h3 class="video-title">📹 Análisis de Video</h3>
+                <div class="camera-status">
+                    <span class="status-indicator"></span>
+                    <span>Cámara Principal</span>
+                </div>
+            </div>
+
+            <!-- Simulación de pantalla de video -->
+            <div class="video-screen" id="videoScreen">
+                <img src="{% url 'monitoreo:video_feed' %}" style="width: 100%; height: 100%; object-fit: contain; background: black;">
+                <div class="video-frame-info" id="frameInfo" style="display: none;">
+                    Frame: <span id="frameNumber">0</span> | FPS: 30
+                </div>
+            </div>
+
+            <!-- Información de la cámara -->
+            <div style="background: var(--light-bg); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem;">
+                <div style="margin-bottom: 0.5rem;">
+                    <strong>Ubicación:</strong> Avenida Principal, Zona Centro
+                </div>
+                <div style="margin-bottom: 0.5rem;">
+                    <strong>Resolución:</strong> 1920x1080 @ 30FPS
+                </div>
+                <div>
+                    <strong>Estado:</strong> 
+                    <span style="color: var(--success-color); font-weight: bold;">✓ En línea</span>
+                </div>
+            </div>
+
+            <!-- Controles de video -->
+            <div class="video-controls">
+                <button class="btn btn-secondary" onclick="startVideoAnalysis()">
+                    ▶️ Iniciar Análisis
+                </button>
+                <button class="btn btn-warning" onclick="pauseVideoAnalysis()">
+                    ⏸️ Pausar
+                </button>
+                <button class="btn btn-primary" onclick="downloadFrame()">
+                    💾 Descargar Frame
+                </button>
+            </div>
+        </div>
+
+        <!-- Panel de análisis (RF-02: Detectar comportamientos sospechosos) -->
+        <div class="analysis-panel">
+            <div class="analysis-header">
+                <h3 class="analysis-title">🔍 Resultado del Análisis</h3>
+                <div class="analysis-status">
+                    <span id="analysisStatus">Estado: Listo</span>
+                </div>
+            </div>
+
+            <!-- Resultado principal -->
+            <div class="analysis-result" id="analysisResult">
+                <div class="result-label">Clasificación</div>
+                <div class="result-value" id="resultValue">Analizando...</div>
+                <div class="result-description" id="resultDescription">
+                    Inicie el análisis de video para obtener resultados en tiempo real.
+                </div>
+
+                <!-- Barra de confianza -->
+                <div style="margin-top: 1rem;">
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confidenceFill" style="width: 0%;"></div>
+                    </div>
+                    <div class="confidence-text">
+                        Confiabilidad: <span id="confidenceValue">0</span>%
+                    </div>
+                </div>
+            </div>
+
+            <!-- Matriz de detección (Heatmap) -->
+            <div class="detection-matrix">
+                <div class="matrix-title">📊 Densidad de Movimiento</div>
+                <div class="heatmap">
+                    <div class="heatmap-pointer"></div>
+                </div>
+                <div class="confidence-text">
+                    Rojo: Alto riesgo | Amarillo: Medio | Verde: Normal
+                </div>
+            </div>
+
+            <!-- Comportamientos detectados -->
+            <div class="behaviors-list">
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-dark); margin-bottom: 0.75rem;">
+                    ✓ Patrones Analizados:
+                </div>
+
+                <div class="behavior-item">
+                    <div class="behavior-check not-detected">✓</div>
+                    <div>
+                        <strong>Movimiento errático</strong> - No detectado
+                    </div>
+                </div>
+
+                <div class="behavior-item">
+                    <div class="behavior-check not-detected">✓</div>
+                    <div>
+                        <strong>Aproximación furtiva</strong> - No detectado
+                    </div>
+                </div>
+
+                <div class="behavior-item">
+                    <div class="behavior-check not-detected">✓</div>
+                    <div>
+                        <strong>Manipulación de objetos</strong> - No detectado
+                    </div>
+                </div>
+
+                <div class="behavior-item">
+                    <div class="behavior-check not-detected">✓</div>
+                    <div>
+                        <strong>Concentración de personas</strong> - No detectado
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones de acción -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem;">
+                <button class="btn btn-danger" onclick="generateAlertManual()">
+                    🚨 Generar Alerta
+                </button>
+                <button class="btn btn-success" onclick="confirmNormal()">
+                    ✓ Confirmar Normal
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SISTEMA DE ALERTAS EN VIVO -->
+    <div class="live-alerts">
+        <div class="alerts-header">
+            <h3 class="alerts-title">🔔 Alertas en Tiempo Real</h3>
+            <span class="alert-live-badge" id="alertLiveBadge">EN VIVO</span>
+        </div>
+
+        <!-- Lista de alertas recientes -->
+        <div id="alertsList">
+            <div class="alert-item">
+                <div class="alert-icon-box">⚠️</div>
+                <div class="alert-content">
+                    <div class="alert-time">Hace 2 minutos</div>
+                    <div class="alert-text">Comportamiento sospechoso detectado</div>
+                    <div class="alert-description">
+                        Cámara Centro - Movimiento errático detectado en zona de acceso
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert-item">
+                <div class="alert-icon-box">⚠️</div>
+                <div class="alert-content">
+                    <div class="alert-time">Hace 15 minutos</div>
+                    <div class="alert-text">Aproximación furtiva detectada</div>
+                    <div class="alert-description">
+                        Cámara Norte - Persona aproximándose a zona restringida
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert-item">
+                <div class="alert-icon-box">ℹ️</div>
+                <div class="alert-content">
+                    <div class="alert-time">Hace 1 hora</div>
+                    <div class="alert-text" style="color: var(--secondary-color);">Evento normal registrado</div>
+                    <div class="alert-description">
+                        Cámara Sur - Actividad normal. Transeúntes en horario regulado.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botón para ver todas las alertas -->
+        <div style="text-align: center; margin-top: 1rem;">
+            <a href="{% url 'monitoreo:alertas' %}" class="btn btn-primary">
+                Ver todas las alertas →
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript interactivo -->
+<script>
+    let isAnalyzing = false;
+    let frameCounter = 0;
+
+    /**
+     * RF-01: Iniciar análisis de video en tiempo real
+     */
+    function startVideoAnalysis() {
+        isAnalyzing = true;
+        const videoScreen = document.getElementById('videoScreen');
+        const frameInfo = document.getElementById('frameInfo');
+        const analysisStatus = document.getElementById('analysisStatus');
+        const analysisResult = document.getElementById('analysisResult');
+        const resultValue = document.getElementById('resultValue');
+        const resultDescription = document.getElementById('resultDescription');
+        const confidenceFill = document.getElementById('confidenceFill');
+        const confidenceValue = document.getElementById('confidenceValue');
+
+        // Cambiar estado visual
+        videoScreen.classList.add('analyzing');
+        frameInfo.style.display = 'block';
+        analysisStatus.textContent = 'Estado: Analizando... (RF-01)';
+
+        // Simular procesamiento de video
+        let confidence = 0;
+        const interval = setInterval(() => {
+            if (!isAnalyzing) {
+                clearInterval(interval);
+                return;
+            }
+
+            frameCounter++;
+            document.getElementById('frameNumber').textContent = frameCounter;
+            confidence = Math.min(confidence + Math.random() * 15, 100);
+            confidenceFill.style.width = confidence + '%';
+            confidenceValue.textContent = Math.floor(confidence);
+
+            // Simular resultado a los 2 segundos (RF-02: Detectar comportamientos)
+            if (confidence >= 100) {
+                isAnalyzing = false;
+                videoScreen.classList.remove('analyzing');
+                analysisStatus.textContent = 'Estado: Análisis completado';
+
+                // Resultado aleatorio: 70% normal, 30% sospechoso
+                const isSuspicious = Math.random() < 0.3;
+                
+                if (isSuspicious) {
+                    analysisResult.classList.remove('normal');
+                    analysisResult.classList.add('suspicious');
+                    resultValue.textContent = '⚠️ SOSPECHOSO';
+                    resultDescription.textContent = 'Se detectó comportamiento anómalo. Movimiento errático en zona de riesgo.';
+                    updateNotificationBadge(1);
+                    showSuspiciousAlert();
+                } else {
+                    analysisResult.classList.remove('suspicious');
+                    analysisResult.classList.add('normal');
+                    resultValue.textContent = '✓ NORMAL';
+                    resultDescription.textContent = 'Actividad normal detectada. Ningún comportamiento sospechoso.';
+                }
+
+                clearInterval(interval);
+            }
+        }, 100);
+    }
+
+    /**
+     * Pausar análisis de video
+     */
+    function pauseVideoAnalysis() {
+        isAnalyzing = false;
+        document.getElementById('videoScreen').classList.remove('analyzing');
+        document.getElementById('analysisStatus').textContent = 'Estado: Pausado';
+        alert('Análisis pausado. Click en "Iniciar Análisis" para reanudar.');
+    }
+
+    /**
+     * Descargar frame actual
+     */
+    function downloadFrame() {
+        alert(`Frame ${frameCounter} descargado exitosamente.\n(Simulación de descarga)`);
+    }
+
+    /**
+     * RF-02: Comportamiento sospechoso detectado
+     */
+    function showSuspiciousAlert() {
+        const alertsList = document.getElementById('alertsList');
+        const newAlert = document.createElement('div');
+        newAlert.className = 'alert-item animate-slide';
+        newAlert.innerHTML = `
+            <div class="alert-icon-box">🚨</div>
+            <div class="alert-content">
+                <div class="alert-time">Justo ahora</div>
+                <div class="alert-text">ALERTA: Comportamiento sospechoso detectado</div>
+                <div class="alert-description">
+                    Análisis automático completado - RF-02: Movimiento errático identificado
+                </div>
+            </div>
+        `;
+        alertsList.insertBefore(newAlert, alertsList.firstChild);
+    }
+
+    /**
+     * Generar alerta manualmente
+     */
+    function generateAlertManual() {
+        alert('🚨 Alerta generada manualmente.\nRF-03: Alerta enviada al personal de monitoreo.');
+        showSuspiciousAlert();
+        updateNotificationBadge(parseInt(document.getElementById('notification-count').textContent) + 1);
+    }
+
+    /**
+     * Confirmar que la actividad es normal
+     */
+    function confirmNormal() {
+        alert('✓ Actividad confirmada como normal.\nRegistro actualizado en la base de datos.');
+    }
+
+    // Inicializar
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Dashboard inicializado');
+        console.log('RF-01: Analizar video en tiempo real - Disponible');
+        console.log('RF-02: Detectar comportamientos sospechosos - Disponible');
+        updateNotificationBadge(3);
+    });
+</script>
+{% endblock %}

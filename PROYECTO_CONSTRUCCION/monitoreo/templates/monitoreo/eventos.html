@@ -1,0 +1,1029 @@
+{% extends "monitoreo/base.html" %}
+
+{% block title %}Eventos - Sistema de Monitoreo{% endblock %}
+{% block page_title %}Registro de Eventos{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Estilos para registro de eventos */
+    .events-toolbar {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        align-items: end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .filter-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .form-input,
+    .form-select {
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-select {
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%231e3a8a' d='M1 4l5 5 5-5'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        padding-right: 2rem;
+    }
+
+    .form-input:focus,
+    .form-select:focus {
+        outline: none;
+        border-color: var(--secondary-color);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .action-btn {
+        padding: 0.75rem 1.5rem;
+        background: var(--secondary-color);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+
+    .action-btn:hover {
+        background: var(--primary-color);
+        transform: translateY(-2px);
+    }
+
+    /* Estadísticas de eventos */
+    .events-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-box {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-top: 4px solid var(--secondary-color);
+        text-align: center;
+    }
+
+    .stat-box.danger {
+        border-top-color: var(--danger-color);
+    }
+
+    .stat-box.warning {
+        border-top-color: var(--warning-color);
+    }
+
+    .stat-box.success {
+        border-top-color: var(--success-color);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        color: var(--text-light);
+        letter-spacing: 0.5px;
+    }
+
+    /* Tabla de eventos */
+    .events-table-container {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .table-header {
+        padding: 1.5rem;
+        background: var(--light-bg);
+        border-bottom: 2px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .table-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+
+    .table-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .table-btn {
+        padding: 0.5rem 1rem;
+        background: var(--secondary-color);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .table-btn:hover {
+        background: var(--primary-color);
+    }
+
+    .table-btn.export {
+        background: var(--success-color);
+    }
+
+    .table-btn.export:hover {
+        background: #059669;
+    }
+
+    /* Tabla responsive */
+    .table-wrapper {
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    thead {
+        background: var(--light-bg);
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text-dark);
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 0.9rem;
+    }
+
+    tbody tr:hover {
+        background: rgba(59, 130, 246, 0.05);
+        transition: all 0.3s ease;
+    }
+
+    tbody tr.highlight {
+        background: rgba(220, 38, 38, 0.05);
+    }
+
+    /* Badges de tipo de evento */
+    .event-badge {
+        display: inline-block;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .badge-sospechoso {
+        background: rgba(220, 38, 38, 0.1);
+        color: var(--danger-color);
+    }
+
+    .badge-normal {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success-color);
+    }
+
+    .badge-advertencia {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-color);
+    }
+
+    /* Indicadores de nivel de riesgo */
+    .risk-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .risk-critical {
+        background: rgba(220, 38, 38, 0.1);
+        color: var(--danger-color);
+    }
+
+    .risk-high {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-color);
+    }
+
+    .risk-medium {
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--secondary-color);
+    }
+
+    .risk-low {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success-color);
+    }
+
+    .risk-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+
+    /* Acciones en tabla */
+    .action-icons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .icon-btn {
+        padding: 0.5rem;
+        background: var(--light-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .icon-btn:hover {
+        background: var(--secondary-color);
+        color: white;
+        border-color: var(--secondary-color);
+    }
+
+    /* Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+    }
+
+    .modal.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 20px 25px rgba(0, 0, 0, 0.2);
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .modal-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: var(--text-light);
+    }
+
+    .modal-close:hover {
+        color: var(--text-dark);
+    }
+
+    .modal-detail {
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-detail-label {
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 0.25rem;
+    }
+
+    .modal-detail-value {
+        color: var(--text-dark);
+    }
+
+    /* Paginación */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 2rem;
+        padding: 2rem;
+    }
+
+    .pagination-btn {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--border-color);
+        background: white;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+
+    .pagination-btn:hover,
+    .pagination-btn.active {
+        background: var(--secondary-color);
+        color: white;
+        border-color: var(--secondary-color);
+    }
+
+    /* Responsividad */
+    @media (max-width: 1024px) {
+        .events-toolbar {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        table {
+            font-size: 0.85rem;
+        }
+
+        th, td {
+            padding: 0.75rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .events-toolbar {
+            grid-template-columns: 1fr;
+        }
+
+        .table-header {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .table-actions {
+            width: 100%;
+        }
+
+        .table-btn {
+            flex: 1;
+        }
+
+        table {
+            display: block;
+            overflow-x: auto;
+        }
+
+        th, td {
+            padding: 0.5rem;
+            font-size: 0.8rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .events-stats {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        table {
+            font-size: 0.75rem;
+        }
+    }
+
+    /* Estado vacío */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .empty-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-description {
+        color: var(--text-light);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="animate-fade">
+    <!-- Barra de filtros y búsqueda -->
+    <div class="events-toolbar">
+        <div class="filter-group">
+            <label class="filter-label">🔍 Búsqueda</label>
+            <input
+                type="text"
+                class="form-input"
+                placeholder="ID evento, ubicación, zona..."
+                id="searchInput"
+            >
+        </div>
+
+        <div class="filter-group">
+            <label class="filter-label">📊 Tipo de Evento</label>
+            <select class="form-select" id="typeFilter">
+                <option value="">Todos los tipos</option>
+                <option value="sospechoso">⚠️ Comportamiento Sospechoso</option>
+                <option value="normal">✓ Evento Normal</option>
+                <option value="advertencia">! Advertencia</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label class="filter-label">📈 Nivel de Riesgo</label>
+            <select class="form-select" id="riskFilter">
+                <option value="">Todos los niveles</option>
+                <option value="critical">🔴 Crítico</option>
+                <option value="high">🟠 Alto</option>
+                <option value="medium">🟡 Medio</option>
+                <option value="low">🟢 Bajo</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label class="filter-label">📍 Zona</label>
+            <select class="form-select" id="zoneFilter">
+                <option value="">Todas las zonas</option>
+                <option value="centro">Centro Urbano</option>
+                <option value="comercial">Zona Comercial</option>
+                <option value="publica">Zona Pública</option>
+                <option value="vehiculos">Zona de Vehículos</option>
+                <option value="restringida">Área Restringida</option>
+            </select>
+        </div>
+
+        <button class="action-btn" onclick="applyFilters()">
+            🔍 Filtrar Eventos
+        </button>
+    </div>
+
+    <!-- Estadísticas de eventos (RF-05: Registrar eventos) -->
+    <div class="events-stats">
+        <div class="stat-box">
+            <div class="stat-number">147</div>
+            <div class="stat-label">Total Eventos (Mes)</div>
+        </div>
+
+        <div class="stat-box danger">
+            <div class="stat-number">32</div>
+            <div class="stat-label">Eventos Sospechosos</div>
+        </div>
+
+        <div class="stat-box warning">
+            <div class="stat-number">28</div>
+            <div class="stat-label">Advertencias</div>
+        </div>
+
+        <div class="stat-box success">
+            <div class="stat-number">87</div>
+            <div class="stat-label">Eventos Normales</div>
+        </div>
+    </div>
+
+    <!-- TABLA DE REGISTRO DE EVENTOS (RF-05) -->
+    <div class="events-table-container">
+        <div class="table-header">
+            <div class="table-title">📋 Registro de Eventos Detectados</div>
+            <div class="table-actions">
+                <button class="table-btn export" onclick="exportEvents()">
+                    💾 Exportar Reporte
+                </button>
+                <button class="table-btn" onclick="printEvents()">
+                    🖨️ Imprimir
+                </button>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table id="eventsTable">
+                <thead>
+                    <tr>
+                        <th>ID Evento</th>
+                        <th>Fecha/Hora</th>
+                        <th>📍 Ubicación (Zona)</th>
+                        <th>🎯 Tipo de Evento</th>
+                        <th>📈 Nivel de Riesgo</th>
+                        <th>📹 Cámara</th>
+                        <th>Detalles</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Evento 1: Sospechoso -->
+                    <tr class="highlight">
+                        <td><strong>#EVT-2024-001</strong></td>
+                        <td>2024-01-23 14:35:22</td>
+                        <td>Avenida Principal<br><small>Centro Urbano</small></td>
+                        <td><span class="event-badge badge-sospechoso">Sospechoso</span></td>
+                        <td>
+                            <span class="risk-indicator risk-critical">
+                                <span class="risk-dot" style="background: var(--danger-color);"></span>
+                                Crítico
+                            </span>
+                        </td>
+                        <td>CAM-05</td>
+                        <td>
+                            <button class="icon-btn" onclick="viewEventDetails(1)" title="Ver detalles">👁️</button>
+                        </td>
+                        <td>
+                            <div class="action-icons">
+                                <button class="icon-btn" onclick="viewEventDetails(1)" title="Detalles">📋</button>
+                                <button class="icon-btn" onclick="downloadEvidence(1)" title="Descargar evidencia">💾</button>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Evento 2: Normal -->
+                    <tr>
+                        <td><strong>#EVT-2024-002</strong></td>
+                        <td>2024-01-23 14:20:15</td>
+                        <td>Calle Norte<br><small>Zona Comercial</small></td>
+                        <td><span class="event-badge badge-normal">Normal</span></td>
+                        <td>
+                            <span class="risk-indicator risk-low">
+                                <span class="risk-dot" style="background: var(--success-color);"></span>
+                                Bajo
+                            </span>
+                        </td>
+                        <td>CAM-08</td>
+                        <td>
+                            <button class="icon-btn" onclick="viewEventDetails(2)" title="Ver detalles">👁️</button>
+                        </td>
+                        <td>
+                            <div class="action-icons">
+                                <button class="icon-btn" onclick="viewEventDetails(2)" title="Detalles">📋</button>
+                                <button class="icon-btn" onclick="downloadEvidence(2)" title="Descargar evidencia">💾</button>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Evento 3: Sospechoso -->
+                    <tr class="highlight">
+                        <td><strong>#EVT-2024-003</strong></td>
+                        <td>2024-01-23 13:50:00</td>
+                        <td>Parque Central<br><small>Zona Pública</small></td>
+                        <td><span class="event-badge badge-advertencia">Advertencia</span></td>
+                        <td>
+                            <span class="risk-indicator risk-medium">
+                                <span class="risk-dot" style="background: var(--secondary-color);"></span>
+                                Medio
+                            </span>
+                        </td>
+                        <td>CAM-03</td>
+                        <td>
+                            <button class="icon-btn" onclick="viewEventDetails(3)" title="Ver detalles">👁️</button>
+                        </td>
+                        <td>
+                            <div class="action-icons">
+                                <button class="icon-btn" onclick="viewEventDetails(3)" title="Detalles">📋</button>
+                                <button class="icon-btn" onclick="downloadEvidence(3)" title="Descargar evidencia">💾</button>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Evento 4: Sospechoso -->
+                    <tr class="highlight">
+                        <td><strong>#EVT-2024-004</strong></td>
+                        <td>2024-01-23 13:35:45</td>
+                        <td>Estacionamiento Sur<br><small>Zona de Vehículos</small></td>
+                        <td><span class="event-badge badge-sospechoso">Sospechoso</span></td>
+                        <td>
+                            <span class="risk-indicator risk-high">
+                                <span class="risk-dot" style="background: var(--warning-color);"></span>
+                                Alto
+                            </span>
+                        </td>
+                        <td>CAM-12</td>
+                        <td>
+                            <button class="icon-btn" onclick="viewEventDetails(4)" title="Ver detalles">👁️</button>
+                        </td>
+                        <td>
+                            <div class="action-icons">
+                                <button class="icon-btn" onclick="viewEventDetails(4)" title="Detalles">📋</button>
+                                <button class="icon-btn" onclick="downloadEvidence(4)" title="Descargar evidencia">💾</button>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Evento 5: Sospechoso -->
+                    <tr class="highlight">
+                        <td><strong>#EVT-2024-005</strong></td>
+                        <td>2024-01-23 14:32:18</td>
+                        <td>Puerta Trasera, Almacén<br><small>Área Restringida</small></td>
+                        <td><span class="event-badge badge-sospechoso">Sospechoso</span></td>
+                        <td>
+                            <span class="risk-indicator risk-critical">
+                                <span class="risk-dot" style="background: var(--danger-color);"></span>
+                                Crítico
+                            </span>
+                        </td>
+                        <td>CAM-15</td>
+                        <td>
+                            <button class="icon-btn" onclick="viewEventDetails(5)" title="Ver detalles">👁️</button>
+                        </td>
+                        <td>
+                            <div class="action-icons">
+                                <button class="icon-btn" onclick="viewEventDetails(5)" title="Detalles">📋</button>
+                                <button class="icon-btn" onclick="downloadEvidence(5)" title="Descargar evidencia">💾</button>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Evento 6: Normal -->
+                    <tr>
+                        <td><strong>#EVT-2024-006</strong></td>
+                        <td>2024-01-23 12:15:30</td>
+                        <td>Entrada Principal<br><small>Centro Urbano</small></td>
+                        <td><span class="event-badge badge-normal">Normal</span></td>
+                        <td>
+                            <span class="risk-indicator risk-low">
+                                <span class="risk-dot" style="background: var(--success-color);"></span>
+                                Bajo
+                            </span>
+                        </td>
+                        <td>CAM-01</td>
+                        <td>
+                            <button class="icon-btn" onclick="viewEventDetails(6)" title="Ver detalles">👁️</button>
+                        </td>
+                        <td>
+                            <div class="action-icons">
+                                <button class="icon-btn" onclick="viewEventDetails(6)" title="Detalles">📋</button>
+                                <button class="icon-btn" onclick="downloadEvidence(6)" title="Descargar evidencia">💾</button>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Evento 7: Normal -->
+                    <tr>
+                        <td><strong>#EVT-2024-007</strong></td>
+                        <td>2024-01-23 11:45:00</td>
+                        <td>Zona Verde<br><small>Zona Pública</small></td>
+                        <td><span class="event-badge badge-normal">Normal</span></td>
+                        <td>
+                            <span class="risk-indicator risk-low">
+                                <span class="risk-dot" style="background: var(--success-color);"></span>
+                                Bajo
+                            </span>
+                        </td>
+                        <td>CAM-07</td>
+                        <td>
+                            <button class="icon-btn" onclick="viewEventDetails(7)" title="Ver detalles">👁️</button>
+                        </td>
+                        <td>
+                            <div class="action-icons">
+                                <button class="icon-btn" onclick="viewEventDetails(7)" title="Detalles">📋</button>
+                                <button class="icon-btn" onclick="downloadEvidence(7)" title="Descargar evidencia">💾</button>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Evento 8: Sospechoso -->
+                    <tr class="highlight">
+                        <td><strong>#EVT-2024-008</strong></td>
+                        <td>2024-01-23 10:22:45</td>
+                        <td>Pasaje Lateral<br><small>Zona Comercial</small></td>
+                        <td><span class="event-badge badge-sospechoso">Sospechoso</span></td>
+                        <td>
+                            <span class="risk-indicator risk-high">
+                                <span class="risk-dot" style="background: var(--warning-color);"></span>
+                                Alto
+                            </span>
+                        </td>
+                        <td>CAM-11</td>
+                        <td>
+                            <button class="icon-btn" onclick="viewEventDetails(8)" title="Ver detalles">👁️</button>
+                        </td>
+                        <td>
+                            <div class="action-icons">
+                                <button class="icon-btn" onclick="viewEventDetails(8)" title="Detalles">📋</button>
+                                <button class="icon-btn" onclick="downloadEvidence(8)" title="Descargar evidencia">💾</button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        <div class="pagination">
+            <button class="pagination-btn active">1</button>
+            <button class="pagination-btn">2</button>
+            <button class="pagination-btn">3</button>
+            <span style="margin: 0 1rem;">...</span>
+            <button class="pagination-btn">→</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de detalles de evento -->
+<div class="modal" id="detailsModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title" id="modalTitle">Detalles del Evento</h2>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+
+        <div id="modalBody">
+            <!-- Contenido dinámico -->
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem;">
+            <button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>
+            <button class="btn btn-primary" onclick="downloadEventReport()">📥 Descargar Reporte</button>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript -->
+<script>
+    /**
+     * RF-05: Registrar eventos detectados
+     * Sistema de registro y visualización de eventos en tabla
+     */
+
+    const eventDetails = {
+        1: {
+            id: '#EVT-2024-001',
+            fecha: '2024-01-23',
+            hora: '14:35:22',
+            ubicacion: 'Avenida Principal, Centro Urbano',
+            camara: 'CAM-05',
+            tipo: 'Comportamiento Sospechoso',
+            riesgo: 'Crítico',
+            descripcion: 'Movimiento errático detectado en zona de acceso restringido. Patrón de comportamiento anómalo identificado por IA.',
+            confiabilidad: '92%',
+            comportamientos: ['Movimiento errático', 'Aproximación lenta', 'Mirada furtiva'],
+            detalles_adicionales: 'El sistema de visión computacional detectó cambios bruscos de dirección inconsistentes con patrones normales de tránsito. Zona de alto riesgo por valor del entorno.'
+        },
+        2: {
+            id: '#EVT-2024-002',
+            fecha: '2024-01-23',
+            hora: '14:20:15',
+            ubicacion: 'Calle Norte, Zona Comercial',
+            camara: 'CAM-08',
+            tipo: 'Evento Normal',
+            riesgo: 'Bajo',
+            descripcion: 'Actividad normal detectada. Transeúntes en horario regulado.',
+            confiabilidad: '78%',
+            comportamientos: ['Tránsito normal', 'Velocidad constante', 'Comportamiento predecible'],
+            detalles_adicionales: 'El análisis de movimiento confirma patrones normales de actividad comercial. Sin anomalías detectadas.'
+        },
+        3: {
+            id: '#EVT-2024-003',
+            fecha: '2024-01-23',
+            hora: '13:50:00',
+            ubicacion: 'Parque Central, Zona Pública',
+            camara: 'CAM-03',
+            tipo: 'Advertencia',
+            riesgo: 'Medio',
+            descripcion: 'Aglomeración de personas sin vigilancia habitual.',
+            confiabilidad: '65%',
+            comportamientos: ['Concentración de personas', 'Movimiento coordinado'],
+            detalles_adicionales: 'Se detectó una concentración de más de 10 personas. Requiere verificación visual para confirmar si es evento normal (reunión) o potencial incidente.'
+        },
+        4: {
+            id: '#EVT-2024-004',
+            fecha: '2024-01-23',
+            hora: '13:35:45',
+            ubicacion: 'Estacionamiento Sur, Zona de Vehículos',
+            camara: 'CAM-12',
+            tipo: 'Comportamiento Sospechoso',
+            riesgo: 'Alto',
+            descripcion: 'Manipulación de objetos cerca de vehículos.',
+            confiabilidad: '85%',
+            comportamientos: ['Manipulación de objetos', 'Movimiento furtivo', 'Aproximación a vehículos'],
+            detalles_adicionales: 'El sistema detectó movimientos repetitivos indicativos de intento de acceso a vehículos. Patrón consistente con intentos de robo.'
+        },
+        5: {
+            id: '#EVT-2024-005',
+            fecha: '2024-01-23',
+            hora: '14:32:18',
+            ubicacion: 'Puerta Trasera, Almacén - Área Restringida',
+            camara: 'CAM-15',
+            tipo: 'Comportamiento Sospechoso',
+            riesgo: 'Crítico',
+            descripcion: 'Intento de acceso no autorizado a zona restringida.',
+            confiabilidad: '89%',
+            comportamientos: ['Intento de apertura', 'Acceso no autorizado', 'Manipulación de puerta'],
+            detalles_adicionales: 'Persona intentando abrir puerta de acceso controlado. Sistema recomienda activación de protocolo de emergencia. Respuesta inmediata requerida.'
+        },
+        6: {
+            id: '#EVT-2024-006',
+            fecha: '2024-01-23',
+            hora: '12:15:30',
+            ubicacion: 'Entrada Principal, Centro Urbano',
+            camara: 'CAM-01',
+            tipo: 'Evento Normal',
+            riesgo: 'Bajo',
+            descripcion: 'Tránsito normal de transeúntes.',
+            confiabilidad: '80%',
+            comportamientos: ['Tránsito normal', 'Velocidad normal', 'Patrones regulares'],
+            detalles_adicionales: 'Análisis confirma actividad normal consistente con horario laboral típico.'
+        },
+        7: {
+            id: '#EVT-2024-007',
+            fecha: '2024-01-23',
+            hora: '11:45:00',
+            ubicacion: 'Zona Verde, Zona Pública',
+            camara: 'CAM-07',
+            tipo: 'Evento Normal',
+            riesgo: 'Bajo',
+            descripcion: 'Actividad recreativa normal.',
+            confiabilidad: '72%',
+            comportamientos: ['Movimiento recreativo', 'Comportamiento normal', 'Sin anomalías'],
+            detalles_adicionales: 'Personas utilizando zona recreativa de forma normal. Sin indicadores de actividad sospechosa.'
+        },
+        8: {
+            id: '#EVT-2024-008',
+            fecha: '2024-01-23',
+            hora: '10:22:45',
+            ubicacion: 'Pasaje Lateral, Zona Comercial',
+            camara: 'CAM-11',
+            tipo: 'Comportamiento Sospechoso',
+            riesgo: 'Alto',
+            descripcion: 'Actividad sospechosa en pasaje con bajo tránsito.',
+            confiabilidad: '82%',
+            comportamientos: ['Movimiento furtivo', 'Aproximación lenta', 'Mirada vigilante'],
+            detalles_adicionales: 'Patrón de comportamiento consistente con vigilancia de zona para potencial actividad delictiva. Personal de monitoreo debe investigar.'
+        }
+    };
+
+    function applyFilters() {
+        const search = document.getElementById('searchInput').value;
+        const type = document.getElementById('typeFilter').value;
+        const risk = document.getElementById('riskFilter').value;
+        const zone = document.getElementById('zoneFilter').value;
+
+        console.log(`Filtros: Búsqueda=${search}, Tipo=${type}, Riesgo=${risk}, Zona=${zone}`);
+        alert(`Filtros aplicados:\nBúsqueda: ${search || 'Todas'}\nTipo: ${type || 'Todos'}\nRiesgo: ${risk || 'Todos'}\nZona: ${zone || 'Todas'}`);
+    }
+
+    function viewEventDetails(eventId) {
+        const event = eventDetails[eventId];
+        const modal = document.getElementById('detailsModal');
+        const modalBody = document.getElementById('modalBody');
+
+        modalBody.innerHTML = `
+            <div class="modal-detail">
+                <div class="modal-detail-label">ID Evento:</div>
+                <div class="modal-detail-value"><strong>${event.id}</strong></div>
+            </div>
+
+            <div class="modal-detail">
+                <div class="modal-detail-label">📅 Fecha y Hora:</div>
+                <div class="modal-detail-value">${event.fecha} ${event.hora}</div>
+            </div>
+
+            <div class="modal-detail">
+                <div class="modal-detail-label">📍 Ubicación:</div>
+                <div class="modal-detail-value">${event.ubicacion}</div>
+            </div>
+
+            <div class="modal-detail">
+                <div class="modal-detail-label">📹 Cámara:</div>
+                <div class="modal-detail-value">${event.camara}</div>
+            </div>
+
+            <div class="modal-detail">
+                <div class="modal-detail-label">🎯 Tipo de Evento:</div>
+                <div class="modal-detail-value">${event.tipo}</div>
+            </div>
+
+            <div class="modal-detail">
+                <div class="modal-detail-label">📈 Nivel de Riesgo:</div>
+                <div class="modal-detail-value">${event.riesgo}</div>
+            </div>
+
+            <div class="modal-detail">
+                <div class="modal-detail-label">📊 Confiabilidad:</div>
+                <div class="modal-detail-value">${event.confiabilidad}</div>
+            </div>
+
+            <div class="modal-detail">
+                <div class="modal-detail-label">📝 Descripción:</div>
+                <div class="modal-detail-value">${event.descripcion}</div>
+            </div>
+
+            <div class="modal-detail">
+                <div class="modal-detail-label">🔎 Comportamientos Detectados:</div>
+                <div class="modal-detail-value">
+                    ${event.comportamientos.map(c => `• ${c}`).join('<br>')}
+                </div>
+            </div>
+
+            <div class="modal-detail">
+                <div class="modal-detail-label">ℹ️ Detalles Adicionales:</div>
+                <div class="modal-detail-value">${event.detalles_adicionales}</div>
+            </div>
+        `;
+
+        document.getElementById('modalTitle').textContent = `Evento ${event.id}`;
+        modal.classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('detailsModal').classList.remove('active');
+    }
+
+    function downloadEvidence(eventId) {
+        alert(`📥 Descargando evidencia del evento #EVT-2024-${String(eventId).padStart(3, '0')}...`);
+    }
+
+    function downloadEventReport() {
+        alert('📥 Reporte del evento descargado exitosamente.');
+        closeModal();
+    }
+
+    function exportEvents() {
+        alert('💾 Exportando todos los eventos a CSV...\nArchivo descargado: eventos_${new Date().toISOString().split("T")[0]}.csv');
+    }
+
+    function printEvents() {
+        alert('🖨️ Preparando impresión de eventos...');
+        window.print();
+    }
+
+    // Inicializar
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Registro de Eventos inicializado');
+        console.log('RF-05: Registrar eventos detectados - Tabla de eventos activa');
+    });
+
+    // Cerrar modal con Escape
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeModal();
+        }
+    });
+</script>
+{% endblock %}

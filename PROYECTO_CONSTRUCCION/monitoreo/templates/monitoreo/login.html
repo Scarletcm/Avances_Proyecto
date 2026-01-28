@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inicio de Sesión - Sistema de Monitoreo por Cámaras</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #1e3a8a;
+            --secondary-color: #3b82f6;
+            --danger-color: #dc2626;
+            --success-color: #10b981;
+            --light-bg: #f8fafc;
+            --text-dark: #1e293b;
+            --border-color: #e2e8f0;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #1a2857 50%, #0f172a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        /* Contenedor principal */
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+        }
+
+        /* Tarjeta de login */
+        .login-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            padding: 2.5rem;
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Encabezado de login */
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo-circle {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            margin: 0 auto 1rem;
+            box-shadow: var(--shadow);
+        }
+
+        .login-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .login-subtitle {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+        }
+
+        .system-description {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
+
+        /* Formulario */
+        .login-form {
+            margin-top: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            font-size: 0.95rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.85rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: #cbd5e1;
+        }
+
+        /* Selector de rol */
+        .role-selector {
+            margin-bottom: 1.5rem;
+        }
+
+        .role-selector-title {
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .role-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .role-option {
+            position: relative;
+        }
+
+        .role-option input[type="radio"] {
+            display: none;
+        }
+
+        .role-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .role-option input[type="radio"]:checked + .role-label {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
+            color: white;
+            border-color: var(--secondary-color);
+            box-shadow: var(--shadow);
+        }
+
+        .role-icon {
+            font-size: 1.3rem;
+        }
+
+        /* Checkbox "Recuérdame" */
+        .remember-section {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+
+        .checkbox-input {
+            width: 18px;
+            height: 18px;
+            margin-right: 0.75rem;
+            cursor: pointer;
+            accent-color: var(--secondary-color);
+        }
+
+        .remember-label {
+            cursor: pointer;
+            color: var(--text-dark);
+            flex: 1;
+        }
+
+        .forgot-password {
+            text-align: right;
+        }
+
+        .forgot-password a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .forgot-password a:hover {
+            text-decoration: underline;
+            color: var(--primary-color);
+        }
+
+        /* Botón de envío */
+        .login-button {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 0.5rem;
+        }
+
+        .login-button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .login-button:active {
+            transform: translateY(0);
+        }
+
+        /* Mensaje de error */
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .alert-error {
+            background: rgba(220, 38, 38, 0.1);
+            color: var(--danger-color);
+            border-left: 4px solid var(--danger-color);
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            border-left: 4px solid var(--success-color);
+        }
+
+        .alert-icon {
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        /* Separador */
+        .divider {
+            text-align: center;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--border-color);
+        }
+
+        .divider-text {
+            background: white;
+            padding: 0 1rem;
+            color: #64748b;
+            font-size: 0.85rem;
+            position: relative;
+        }
+
+        /* Pie de página */
+        .login-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        .login-footer a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .login-footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Indicador de conexión */
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-top: 1rem;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success-color);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Responsividad */
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 1.5rem;
+            }
+
+            .login-title {
+                font-size: 1.5rem;
+            }
+
+            .logo-circle {
+                width: 60px;
+                height: 60px;
+                font-size: 2rem;
+            }
+
+            .role-options {
+                grid-template-columns: 1fr;
+            }
+
+            .form-input {
+                padding: 0.75rem;
+            }
+        }
+
+        /* Indicador de carga */
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .spinner {
+            border: 3px solid rgba(59, 130, 246, 0.1);
+            border-top: 3px solid var(--secondary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <!-- Encabezado -->
+            <div class="login-header">
+                <div class="logo-circle">📹</div>
+                <h1 class="login-title">MonitorSec</h1>
+                <p class="login-subtitle">Sistema de Seguridad Urbana</p>
+                <p class="system-description">
+                    Detección inteligente de movimientos sospechosos
+                </p>
+            </div>
+
+            <!-- Mensaje de error (si existe) -->
+            {% if error %}
+                <div class="alert alert-error">
+                    <span class="alert-icon">⚠️</span>
+                    <div>
+                        <strong>Error al iniciar sesión</strong>
+                        <div>{{ error }}</div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Formulario de login -->
+            <form method="POST" class="login-form" id="loginForm">
+                {% csrf_token %}
+
+                <!-- Campo de usuario/email -->
+                <div class="form-group">
+                    <label for="username" class="form-label">
+                        👤 Usuario o Email
+                    </label>
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        class="form-input"
+                        placeholder="Ingrese su usuario o correo"
+                        required
+                        autofocus
+                    >
+                    {% if form.username.errors %}
+                        <div style="color: var(--danger-color); font-size: 0.85rem; margin-top: 0.25rem;">
+                            {{ form.username.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Campo de contraseña -->
+                <div class="form-group">
+                    <label for="password" class="form-label">
+                        🔒 Contraseña
+                    </label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        class="form-input"
+                        placeholder="Ingrese su contraseña"
+                        required
+                    >
+                    {% if form.password.errors %}
+                        <div style="color: var(--danger-color); font-size: 0.85rem; margin-top: 0.25rem;">
+                            {{ form.password.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Selector de rol (RF-07: Gestión de usuarios con roles) -->
+                <div class="role-selector">
+                    <div class="role-selector-title">
+                        Seleccione su rol:
+                    </div>
+                    <div class="role-options">
+                        <!-- Rol: Personal de Monitoreo -->
+                        <div class="role-option">
+                            <input
+                                type="radio"
+                                id="role-monitoring"
+                                name="role"
+                                value="monitoring"
+                                checked
+                            >
+                            <label for="role-monitoring" class="role-label">
+                                <span class="role-icon">👁️</span>
+                                <span>Personal de<br>Monitoreo</span>
+                            </label>
+                        </div>
+
+                        <!-- Rol: Administrador -->
+                        <div class="role-option">
+                            <input
+                                type="radio"
+                                id="role-admin"
+                                name="role"
+                                value="admin"
+                            >
+                            <label for="role-admin" class="role-label">
+                                <span class="role-icon">🛡️</span>
+                                <span>Administrador<br>del Sistema</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Opciones adicionales -->
+                <div class="remember-section">
+                    <input
+                        type="checkbox"
+                        id="remember"
+                        name="remember"
+                        class="checkbox-input"
+                    >
+                    <label for="remember" class="remember-label">
+                        Recuérdame en este dispositivo
+                    </label>
+                    <div class="forgot-password">
+                        <a href="#" onclick="alert('Funcionalidad de recuperación de contraseña')">
+                            ¿Olvidó su contraseña?
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Botón de envío -->
+                <button type="submit" class="login-button" id="submitBtn">
+                    🔓 Iniciar Sesión
+                </button>
+
+                <!-- Indicador de carga -->
+                <div class="loading" id="loadingIndicator">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 0.5rem; color: #64748b; font-size: 0.85rem;">
+                        Verificando credenciales...
+                    </p>
+                </div>
+            </form>
+
+            <!-- Divider -->
+            <div class="divider">
+                <span class="divider-text">Información del Sistema</span>
+            </div>
+
+            <!-- Indicador de conexión -->
+            <div class="connection-status">
+                <span class="status-indicator"></span>
+                <span>Sistema operativo - Base de datos conectada</span>
+            </div>
+
+            <!-- Pie de página -->
+            <div class="login-footer">
+                ¿No tiene cuenta? 
+                <a href="#" onclick="alert('Contacte al administrador del sistema para registrarse')">
+                    Solicitar acceso
+                </a>
+                <br>
+                <br>
+                <small>
+                    © 2024 MonitorSec - Sistema de Seguridad Urbana<br>
+                    Todos los derechos reservados
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Manejo del formulario
+        const loginForm = document.getElementById('loginForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+
+        loginForm.addEventListener('submit', function(e) {
+            // Mostrar indicador de carga
+            submitBtn.style.display = 'none';
+            loadingIndicator.style.display = 'block';
+        });
+
+        // Simular validación en tiempo real
+        document.getElementById('username').addEventListener('input', function() {
+            // Validación visual (opcional)
+        });
+
+        document.getElementById('password').addEventListener('input', function() {
+            // Mostrar/ocultar contraseña (opcional)
+        });
+
+        // Crear cuenta demo (solo para demostración)
+        function createDemoAccount() {
+            const demo = {
+                usuario_monitoring: 'monitor@seguridad.com',
+                usuario_admin: 'admin@seguridad.com',
+                password: 'Demo123!@#'
+            };
+            alert(
+                'Cuentas de demostración:\n\n' +
+                'Personal de Monitoreo:\n' +
+                `Usuario: ${demo.usuario_monitoring}\n` +
+                `Contraseña: ${demo.password}\n\n` +
+                'Administrador:\n' +
+                `Usuario: ${demo.usuario_admin}\n` +
+                `Contraseña: ${demo.password}`
+            );
+        }
+
+        // Información del sistema
+        console.log('Sistema de Detección de Movimiento Corporal y Monitoreo por Cámaras');
+        console.log('RF-07: Gestión de usuarios con roles (Administrador / Personal de monitoreo)');
+    </script>
+</body>
+
+</html>
