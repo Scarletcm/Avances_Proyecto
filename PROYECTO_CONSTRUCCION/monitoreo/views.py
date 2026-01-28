@@ -13,6 +13,35 @@ from .services.detection_service import detection_service, training_service
 from .utils.validators import VideoValidator, TrainingValidator
 
 
+
+
+import requests
+from django.shortcuts import render
+
+def mapa(request):
+    direccion = "Quito Ecuador"
+
+    url = "https://nominatim.openstreetmap.org/search"
+    params = {
+        "q": direccion,
+        "format": "json",
+        "limit": 1
+    }
+
+    headers = {"User-Agent": "django-app"}
+
+    r = requests.get(url, params=params, headers=headers)
+    data = r.json()
+
+    lat = data[0]["lat"]
+    lon = data[0]["lon"]
+
+    return render(request, 'monitoreo/mapa.html', {
+        "lat": lat,
+        "lon": lon
+    })
+
+
 # ============================================================================
 # SERVICIOS GLOBALES
 # ============================================================================

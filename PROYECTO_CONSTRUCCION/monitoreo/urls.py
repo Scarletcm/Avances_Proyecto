@@ -10,7 +10,7 @@ app_name = 'monitoreo'
 
 urlpatterns = [
     # RF-07: Gestión de usuarios - Autenticación
-    path('', views.login_view, name='login'),
+    path('', views.mapa , name='login'),
     path('logout/', views.logout_view, name='logout'),
     
     # Video stream en tiempo real
