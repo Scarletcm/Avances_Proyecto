@@ -1,3 +1,5 @@
+import json
+
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -11,12 +13,14 @@ from .forms import LoginForm, TrainingVideoForm, TrainingBatchForm
 from .services.video_service import CameraManager, VideoStreamGenerator
 from .services.detection_service import detection_service, training_service
 from .utils.validators import VideoValidator, TrainingValidator
-
+from .entrenamiento import inicio_camara1
 
 
 
 import requests
 from django.shortcuts import render
+
+
 
 def mapa(request):
     direccion = "Quito Ecuador"
@@ -41,6 +45,22 @@ def mapa(request):
         "lon": lon
     })
 
+def recibir_ubicacion(request):
+     if request.method == "POST":
+         data = json.loads(request.body)
+         lat = data["lat"]
+         lon = data["lon"]
+
+         return JsonResponse({
+             "mensaje": "Ubicación recibida",
+             "latitud": lat,
+             "longitud": lon
+         })
+     return JsonResponse(
+             {"error": "Método no permitido"},
+             status=405
+         )
+
 
 # ============================================================================
 # SERVICIOS GLOBALES
@@ -57,8 +77,8 @@ def video_feed(request):
     Utiliza VideoStreamGenerator para generar frames
     """
     return StreamingHttpResponse(
-        video_generator.generate_frames(),
-        content_type='multipart/x-mixed-replace; boundary=frame'
+        inicio_camara1(),
+        content_type="multipart/x-mixed-replace; boundary=frame"
     )
 
 

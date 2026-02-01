@@ -610,6 +610,7 @@
                 <button class="btn btn-danger" onclick="generateAlertManual()">
                     🚨 Generar Alerta
                 </button>
+                <button class="btn btn-danger" onclick="enviarUbicacion()"></button>
                 <button class="btn btn-success" onclick="confirmNormal()">
                     ✓ Confirmar Normal
                 </button>
@@ -671,6 +672,26 @@
 
 <!-- JavaScript interactivo -->
 <script>
+    function enviarUbicacion() {
+    navigator.geolocation.getCurrentPosition(
+        function(pos) {
+            fetch("/ubicacion/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({
+                    lat: pos.coords.latitude,
+                    lon: pos.coords.longitude
+                })
+            });
+        },
+        function(error) {
+            alert("No se pudo obtener GPS");
+        }
+    );
+}
     let isAnalyzing = false;
     let frameCounter = 0;
 

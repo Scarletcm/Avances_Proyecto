@@ -25,8 +25,8 @@ pose_video = mp_pose.Pose(
 # =========================
 # Dataset (Machine Learning)
 # =========================
-X = []  # vectores de pose (132)
-y = []  # etiquetas
+X = []
+y = []
 
 LABEL_POSE_CORRECTA = 0
 LABEL_POSE_INCORRECTA = 1
@@ -43,10 +43,9 @@ model = KNeighborsClassifier(n_neighbors=3)
 trained = False
 
 # =========================
-# Funciones
+# Funciones ML
 # =========================
 def extract_keypoints(results):
-    """Convierte landmarks en vector ML"""
     if not results.pose_landmarks:
         return None
 
@@ -56,8 +55,8 @@ def extract_keypoints(results):
 
     return np.array(keypoints)
 
+
 def load_reference_pose(image_path):
-    """Carga pose referencia desde imagen"""
     img = cv2.imread(image_path)
     if img is None:
         print("❌ Imagen no encontrada")
@@ -71,13 +70,8 @@ def load_reference_pose(image_path):
         return None
 
     print("✅ Pose referencia cargada")
-
-    mp_draw.draw_landmarks(img, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
-    cv2.imshow("Pose Referencia", img)
-    cv2.waitKey(1500)
-    cv2.destroyAllWindows()
-
     return extract_keypoints(results)
+
 
 def train_model():
     global trained
@@ -86,11 +80,13 @@ def train_model():
         trained = True
         print("🔥 MODELO ENTRENADO")
 
+
 def predict_pose(keypoints):
     pred = model.predict([keypoints])[0]
     prob = model.predict_proba([keypoints])[0]
     confidence = np.max(prob)
     return pred, confidence
+
 
 # =========================
 # Cargar POSE REFERENCIA
@@ -102,69 +98,61 @@ if ref_pose is not None:
     y.append(LABEL_POSE_CORRECTA)
     train_model()
 
+
 # =========================
-# Webcam
+# STREAM DE VIDEO (WEB)
 # =========================
-cap = cv2.VideoCapture(0)
+def inicio_camara1():
+    cap = cv2.VideoCapture(0)
 
-print("""
-INSTRUCCIONES:
-S = Guardar pose correcta
-I = Guardar pose incorrecta
-ESC = Salir
-""")
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
 
-while cap.isOpened():
-    ret, frame = cap.read()
-    if not ret:
-        break
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = pose_video.process(rgb)
 
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = pose_video.process(rgb)
+        keypoints = extract_keypoints(results)
 
-    keypoints = extract_keypoints(results)
+        if results.pose_landmarks:
+            mp_draw.draw_landmarks(
+                frame,
+                results.pose_landmarks,
+                mp_pose.POSE_CONNECTIONS
+            )
 
-    if results.pose_landmarks:
-        mp_draw.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+        # ========= MACHINE LEARNING =========
+        if trained and keypoints is not None:
+            pred, conf = predict_pose(keypoints)
 
-    key = cv2.waitKey(1) & 0xFF
+            if conf > 0.8:
+                text = f"{labels_map[pred]} ({conf:.2f})"
+                color = (0, 255, 0)
+            elif conf > 0.6:
+                text = f"CASI IGUAL ({conf:.2f})"
+                color = (0, 255, 255)
+            else:
+                text = f"NO COINCIDE ({conf:.2f})"
+                color = (0, 0, 255)
 
-    # Guardar ejemplos
-    if key == ord('s') and keypoints is not None:
-        X.append(keypoints)
-        y.append(LABEL_POSE_CORRECTA)
-        train_model()
-        print("✔ Pose correcta guardada")
+            cv2.putText(
+                frame,
+                text,
+                (20, 40),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                color,
+                2
+            )
 
-    if key == ord('i') and keypoints is not None:
-        X.append(keypoints)
-        y.append(LABEL_POSE_INCORRECTA)
-        train_model()
-        print("✔ Pose incorrecta guardada")
+        # ========= SALIDA PARA HTML =========
+        ret, buffer = cv2.imencode(".jpg", frame)
+        frame = buffer.tobytes()
 
-    # Predicción
-    if trained and keypoints is not None:
-        pred, conf = predict_pose(keypoints)
-
-        if conf > 0.8:
-            text = f"{labels_map[pred]} ({conf:.2f})"
-            color = (0, 255, 0)
-        elif conf > 0.6:
-            text = f"CASI IGUAL ({conf:.2f})"
-            color = (0, 255, 255)
-        else:
-            text = f"NO COINCIDE ({conf:.2f})"
-            color = (0, 0, 255)
-
-        cv2.putText(
-            frame, text, (20, 40),
-            cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2
+        yield (
+            b"--frame\r\n"
+            b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
         )
 
-    cv2.imshow("Comparacion de Pose (IA)", frame)
-
-    if key == 27:
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+    cap.release()
