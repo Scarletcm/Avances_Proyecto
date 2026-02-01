@@ -64,3 +64,11 @@ class DetectionLog(models.Model):
     def __str__(self):
         return f"{self.camera_id} - {self.detected_behavior}"
 
+class Ubicacion(models.Model):
+     latitud = models.FloatField()
+     longitud = models.FloatField()
+     fecha = models.DateTimeField(auto_now_add=True)
+
+     def __str__(self):
+        return f"{self.latitud}, {self.longitud} - {self.fecha}"
+

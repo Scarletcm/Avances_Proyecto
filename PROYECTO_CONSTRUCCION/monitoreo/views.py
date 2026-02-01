@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.views.decorators import gzip
 from django.db.models import Count
 
-from .models import TrainingVideo, TrainedModel, DetectionLog
+from .models import TrainingVideo, TrainedModel, DetectionLog, Ubicacion
 from .forms import LoginForm, TrainingVideoForm, TrainingBatchForm
 from .services.video_service import CameraManager, VideoStreamGenerator
 from .services.detection_service import detection_service, training_service
@@ -23,43 +23,29 @@ from django.shortcuts import render
 
 
 def mapa(request):
-    direccion = "Quito Ecuador"
-
-    url = "https://nominatim.openstreetmap.org/search"
-    params = {
-        "q": direccion,
-        "format": "json",
-        "limit": 1
-    }
-
-    headers = {"User-Agent": "django-app"}
-
-    r = requests.get(url, params=params, headers=headers)
-    data = r.json()
-
-    lat = data[0]["lat"]
-    lon = data[0]["lon"]
+    ubicacion = Ubicacion.objects.latest('id')
+    lat = ubicacion.latitud
+    lon = ubicacion.longitud
 
     return render(request, 'monitoreo/mapa.html', {
-        "lat": lat,
-        "lon": lon
+        'lat': lat,
+        'lon': lon,
     })
 
-def recibir_ubicacion(request):
-     if request.method == "POST":
-         data = json.loads(request.body)
-         lat = data["lat"]
-         lon = data["lon"]
 
-         return JsonResponse({
-             "mensaje": "Ubicación recibida",
-             "latitud": lat,
-             "longitud": lon
-         })
-     return JsonResponse(
-             {"error": "Método no permitido"},
-             status=405
-         )
+
+
+def recibir_ubicacion(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+
+        Ubicacion.objects.create(
+            latitud=data["lat"],
+            longitud=data["lon"]
+        )
+
+        return JsonResponse({"mensaje": "Ubicación guardada"})
+    return None
 
 
 # ============================================================================

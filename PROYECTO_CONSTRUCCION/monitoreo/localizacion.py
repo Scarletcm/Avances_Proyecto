@@ -1,30 +1,25 @@
 import requests
 
 
-def geolocalizar(direccion):
+def geolocalizar(lat, lon):
     url = "https://nominatim.openstreetmap.org/search"
 
     params = {
-        "q": direccion,
+        "lat": lat,
+        "lon": lon,
         "format": "json",
-        "limit": 1
     }
 
     headers = {
-        "User-Agent": "mi-app-python"  # obligatorio
+        "User-Agent": "mi-app-python"
     }
 
     response = requests.get(url, params=params, headers=headers)
     data = response.json()
 
-    if data:
-        lat = data[0]["lat"]
-        lon = data[0]["lon"]
-        return lat, lon
-    else:
-        return None
+
 
 
 # PRUEBA
-resultado = geolocalizar("Quito Ecuador")
+resultado = geolocalizar()
 print(resultado)
