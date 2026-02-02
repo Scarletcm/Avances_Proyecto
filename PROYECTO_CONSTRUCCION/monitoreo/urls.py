@@ -1,7 +1,3 @@
-"""
-URLs para la aplicación de monitoreo.
-Rutas para las vistas del sistema de detección de movimiento corporal y monitoreo por cámaras.
-"""
 
 from django.urls import path
 from . import views, api_views

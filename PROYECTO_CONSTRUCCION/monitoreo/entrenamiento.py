@@ -1,19 +1,15 @@
 import cv2
 import mediapipe as mp
 import numpy as np
-from sklearn.neighbors import KNeighborsClassifier
+from ultralytics import YOLO
+from collections import deque
+from django.shortcuts import render
 
 # =========================
-# MediaPipe
+# MediaPipe Pose
 # =========================
 mp_pose = mp.solutions.pose
 mp_draw = mp.solutions.drawing_utils
-
-pose_image = mp_pose.Pose(
-    static_image_mode=True,
-    model_complexity=2,
-    min_detection_confidence=0.5
-)
 
 pose_video = mp_pose.Pose(
     static_image_mode=False,
@@ -23,87 +19,50 @@ pose_video = mp_pose.Pose(
 )
 
 # =========================
-# Dataset (Machine Learning)
+# YOLOv8 Detector de personas
 # =========================
-X = []
-y = []
-
-LABEL_POSE_CORRECTA = 0
-LABEL_POSE_INCORRECTA = 1
-
-labels_map = {
-    0: "POSE CORRECTA",
-    1: "POSE INCORRECTA"
-}
+yolo_model = YOLO("yolov8n.pt")  # modelo ligero
 
 # =========================
-# Modelo ML
+# Secuencia de poses
 # =========================
-model = KNeighborsClassifier(n_neighbors=3)
-trained = False
+sequence_length = 30
+pose_sequence = deque(maxlen=sequence_length)
+
 
 # =========================
-# Funciones ML
+# Funciones
 # =========================
 def extract_keypoints(results):
     if not results.pose_landmarks:
         return None
-
     keypoints = []
     for lm in results.pose_landmarks.landmark:
         keypoints.extend([lm.x, lm.y, lm.z, lm.visibility])
-
     return np.array(keypoints)
 
 
-def load_reference_pose(image_path):
-    img = cv2.imread(image_path)
-    if img is None:
-        print("❌ Imagen no encontrada")
-        return None
+def analyze_sequence(sequence):
+    """Ejemplo simple de patrón de movimiento"""
+    if len(sequence) < 2:
+        return "Esperando secuencia..."
 
-    rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    results = pose_image.process(rgb)
+    diffs = [np.linalg.norm(sequence[i] - sequence[i - 1]) for i in range(1, len(sequence))]
+    avg_speed = np.mean(diffs)
 
-    if not results.pose_landmarks:
-        print("❌ No se detectó pose en la imagen")
-        return None
-
-    print("✅ Pose referencia cargada")
-    return extract_keypoints(results)
-
-
-def train_model():
-    global trained
-    if len(X) >= 3:
-        model.fit(X, y)
-        trained = True
-        print("🔥 MODELO ENTRENADO")
-
-
-def predict_pose(keypoints):
-    pred = model.predict([keypoints])[0]
-    prob = model.predict_proba([keypoints])[0]
-    confidence = np.max(prob)
-    return pred, confidence
+    if avg_speed > 0.5:
+        return "MOVIMIENTO RÁPIDO"
+    elif avg_speed > 0.1:
+        return "MOVIMIENTO NORMAL"
+    else:
+        return "POSE ESTÁTICA"
 
 
 # =========================
-# Cargar POSE REFERENCIA
+# Stream de video para HTML
 # =========================
-ref_pose = load_reference_pose("data/img.png")
-
-if ref_pose is not None:
-    X.append(ref_pose)
-    y.append(LABEL_POSE_CORRECTA)
-    train_model()
-
-
-# =========================
-# STREAM DE VIDEO (WEB)
-# =========================
-def inicio_camara1():
-    cap = cv2.VideoCapture(0)
+def camara_seguridad_stream():
+    cap = cv2.VideoCapture(0)  # Cambia 0 por tu IP RTSP si es remoto
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -111,48 +70,49 @@ def inicio_camara1():
             break
 
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = pose_video.process(rgb)
 
-        keypoints = extract_keypoints(results)
+        # =========================
+        # Detectar personas
+        # =========================
+        results_yolo = yolo_model(frame)[0]
+        for box in results_yolo.boxes:
+            cls = int(box.cls[0])
+            if cls != 0:  # 0 = persona
+                continue
 
-        if results.pose_landmarks:
-            mp_draw.draw_landmarks(
-                frame,
-                results.pose_landmarks,
-                mp_pose.POSE_CONNECTIONS
-            )
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            person_roi = frame[y1:y2, x1:x2]
+            rgb_roi = cv2.cvtColor(person_roi, cv2.COLOR_BGR2RGB)
 
-        # ========= MACHINE LEARNING =========
-        if trained and keypoints is not None:
-            pred, conf = predict_pose(keypoints)
+            # =========================
+            # Detectar pose
+            # =========================
+            results_pose = pose_video.process(rgb_roi)
+            keypoints = extract_keypoints(results_pose)
 
-            if conf > 0.8:
-                text = f"{labels_map[pred]} ({conf:.2f})"
-                color = (0, 255, 0)
-            elif conf > 0.6:
-                text = f"CASI IGUAL ({conf:.2f})"
-                color = (0, 255, 255)
-            else:
-                text = f"NO COINCIDE ({conf:.2f})"
-                color = (0, 0, 255)
+            if keypoints is not None:
+                pose_sequence.append(keypoints)
 
-            cv2.putText(
-                frame,
-                text,
-                (20, 40),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                color,
-                2
-            )
+            # Dibujar bounding box y pose
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            if results_pose.pose_landmarks:
+                mp_draw.draw_landmarks(frame[y1:y2, x1:x2], results_pose.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
-        # ========= SALIDA PARA HTML =========
-        ret, buffer = cv2.imencode(".jpg", frame)
-        frame = buffer.tobytes()
+        # =========================
+        # Analizar secuencia
+        # =========================
+        pattern_text = analyze_sequence(list(pose_sequence))
+        cv2.putText(frame, pattern_text, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+        # =========================
+        # Codificar frame para HTML
+        # =========================
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame_bytes = buffer.tobytes()
 
         yield (
-            b"--frame\r\n"
-            b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
+                b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n'
         )
 
     cap.release()

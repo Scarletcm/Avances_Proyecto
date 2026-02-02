@@ -13,7 +13,7 @@ from .forms import LoginForm, TrainingVideoForm, TrainingBatchForm
 from .services.video_service import CameraManager, VideoStreamGenerator
 from .services.detection_service import detection_service, training_service
 from .utils.validators import VideoValidator, TrainingValidator
-from .entrenamiento import inicio_camara1
+from .entrenamiento import camara_seguridad_stream
 
 
 
@@ -63,7 +63,7 @@ def video_feed(request):
     Utiliza VideoStreamGenerator para generar frames
     """
     return StreamingHttpResponse(
-        inicio_camara1(),
+        camara_seguridad_stream(),
         content_type="multipart/x-mixed-replace; boundary=frame"
     )
 
