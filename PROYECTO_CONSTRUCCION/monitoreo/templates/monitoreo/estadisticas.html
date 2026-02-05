@@ -77,19 +77,19 @@
     /* Tarjetas de resumen */
     .summary-cards {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1.5rem;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
         margin-bottom: 2rem;
     }
 
     .summary-card {
         background: white;
-        padding: 1.5rem;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        border-top: 4px solid var(--secondary-color);
+        padding: 1.8rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        border-top: 5px solid var(--secondary-color);
         text-align: center;
-        transition: all 0.3s ease;
+        min-height: 160px;
     }
 
     .summary-card:hover {
@@ -110,23 +110,23 @@
     }
 
     .card-value {
-        font-size: 2.5rem;
-        font-weight: 700;
+        font-size: 2rem;
+        font-weight: 800;
         color: var(--primary-color);
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.3rem;
     }
 
     .card-label {
-        font-size: 0.9rem;
+        font-size: 1.1rem;
         text-transform: uppercase;
         color: var(--text-light);
-        letter-spacing: 0.5px;
-        margin-bottom: 0.75rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
     }
 
+
     .card-trend {
-        font-size: 0.85rem;
-        color: var(--success-color);
+        font-size: 0.95rem;
         font-weight: 600;
     }
 
@@ -255,7 +255,7 @@
         position: absolute;
         width: 100%;
         height: 100%;
-        background-image: 
+        background-image:
             linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
             linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
         background-size: 50px 50px;
@@ -595,21 +595,26 @@
 
 {% block content %}
 <div class="animate-fade">
+
+
+
+
     <!-- Filtros para estadísticas -->
-    <div class="stats-filters">
+    <form method="get" class="stats-filters">
+
         <div class="filter-group">
             <label class="filter-label">📅 Rango de Fechas</label>
-            <select class="form-select" id="dateRange">
+            <select class="form-select" name="rango">
                 <option value="today">Hoy</option>
                 <option value="week">Esta semana</option>
-                <option value="month" selected>Este mes</option>
+                <option value="month">Este mes</option>
                 <option value="year">Este año</option>
             </select>
         </div>
 
         <div class="filter-group">
             <label class="filter-label">📍 Zona</label>
-            <select class="form-select" id="zoneFilter">
+            <select class="form-select" name="zona">
                 <option value="">Todas las zonas</option>
                 <option value="centro">Centro Urbano</option>
                 <option value="comercial">Zona Comercial</option>
@@ -621,353 +626,192 @@
 
         <div class="filter-group">
             <label class="filter-label">📊 Tipo de Análisis</label>
-            <select class="form-select" id="analysisType">
+            <select class="form-select" name="tipo">
                 <option value="all">Todos los eventos</option>
                 <option value="suspicious">Solo sospechosos</option>
                 <option value="normal">Solo normales</option>
             </select>
         </div>
 
-        <button class="action-btn" onclick="applyFilters()">
+        <button type="submit" class="action-btn">
             📊 Actualizar Análisis
         </button>
-    </div>
+
+    </form>
+
+</div>
+
+
 
     <!-- Resumen de estadísticas principales -->
-    <div class="summary-cards">
-        <div class="summary-card">
-            <div class="card-value">325</div>
-            <div class="card-label">Total Eventos (Mes)</div>
-            <div class="card-trend">↑ 15% respecto a mes anterior</div>
-        </div>
 
-        <div class="summary-card danger">
-            <div class="card-value">45</div>
-            <div class="card-label">Eventos Sospechosos</div>
-            <div class="card-trend negative">↑ 23% respecto a mes anterior</div>
-        </div>
 
-        <div class="summary-card warning">
-            <div class="card-value">8</div>
-            <div class="card-label">Zona de Mayor Riesgo</div>
-            <div class="card-trend">Centro Urbano</div>
-        </div>
 
-        <div class="summary-card success">
-            <div class="card-value">94%</div>
-            <div class="card-label">Tasa de Resolución</div>
-            <div class="card-trend">↑ 3% respecto a mes anterior</div>
-        </div>
+   <div class="summary-cards">
+    <div class="summary-card">
+       <div class="card-value">{{ resumen.total_eventos }}</div>
+       <div class="card-label">Total Eventos (Mes)</div>
+       <div class="card-trend">↑ 15% respecto a mes anterior</div>
     </div>
 
-    <!-- SECCIÓN DE GRÁFICOS -->
-    <div class="charts-section">
-        <!-- Gráfico de eventos por zona (RF-06) -->
-        <div class="chart-card">
-            <div class="chart-title">📊 Eventos por Zona</div>
-            <div class="bar-chart">
-                <div class="bar-item">
-                    <div class="bar-label">Centro Urbano</div>
-                    <div class="bar-container">
-                        <div class="bar-fill danger" style="width: 85%;">85</div>
-                    </div>
-                    <div class="bar-value">85 eventos</div>
-                </div>
-
-                <div class="bar-item">
-                    <div class="bar-label">Zona Comercial</div>
-                    <div class="bar-container">
-                        <div class="bar-fill" style="width: 62%;">62</div>
-                    </div>
-                    <div class="bar-value">62 eventos</div>
-                </div>
-
-                <div class="bar-item">
-                    <div class="bar-label">Zona de Vehículos</div>
-                    <div class="bar-container">
-                        <div class="bar-fill warning" style="width: 58%;">58</div>
-                    </div>
-                    <div class="bar-value">58 eventos</div>
-                </div>
-
-                <div class="bar-item">
-                    <div class="bar-label">Zona Pública</div>
-                    <div class="bar-container">
-                        <div class="bar-fill" style="width: 45%;">45</div>
-                    </div>
-                    <div class="bar-value">45 eventos</div>
-                </div>
-
-                <div class="bar-item">
-                    <div class="bar-label">Área Restringida</div>
-                    <div class="bar-container">
-                        <div class="bar-fill danger" style="width: 35%;">35</div>
-                    </div>
-                    <div class="bar-value">35 eventos</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Gráfico de distribución de severidad -->
-        <div class="chart-card">
-            <div class="chart-title">🎯 Distribución de Severidad</div>
-            <div style="text-align: center;">
-                <div class="pie-chart"></div>
-                <div class="pie-legend">
-                    <div class="pie-item">
-                        <div class="pie-color" style="background: var(--danger-color);"></div>
-                        <span>Crítica (36%)</span>
-                    </div>
-                    <div class="pie-item">
-                        <div class="pie-color" style="background: var(--warning-color);"></div>
-                        <span>Alta (33%)</span>
-                    </div>
-                    <div class="pie-item">
-                        <div class="pie-color" style="background: var(--success-color);"></div>
-                        <span>Normal (31%)</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="summary-card danger">
+        <div class="card-value">{{ resumen.eventos_sospechosos }}</div>
+        <div class="card-label">Eventos Sospechosos</div>
+        <div class="card-trend negative">↑ 23% respecto a mes anterior</div>
     </div>
 
-    <!-- SECCIÓN DE UBICACIÓN DE INCIDENTES (RF-04) -->
-    <div class="map-container">
-        <div class="map-title">
-            📍 Mapa de Ubicación de Incidentes
-        </div>
-
-        <!-- Simulación de mapa -->
-        <div class="map-simulation">
-            <div class="map-grid"></div>
-
-            <!-- Marcadores de zonas con incidentes -->
-            <!-- Centro Urbano - Alto riesgo -->
-            <div class="map-marker high-risk" style="top: 25%; left: 35%;" onclick="viewZoneDetails('centro')">
-                📍
-                <div class="map-marker-label">Centro (85 eventos)</div>
-            </div>
-
-            <!-- Zona Comercial - Riesgo medio -->
-            <div class="map-marker medium-risk" style="top: 50%; left: 70%;" onclick="viewZoneDetails('comercial')">
-                📍
-                <div class="map-marker-label">Comercial (62)</div>
-            </div>
-
-            <!-- Zona de Vehículos - Riesgo medio -->
-            <div class="map-marker medium-risk" style="top: 70%; left: 45%;" onclick="viewZoneDetails('vehiculos')">
-                📍
-                <div class="map-marker-label">Vehículos (58)</div>
-            </div>
-
-            <!-- Zona Pública - Bajo riesgo -->
-            <div class="map-marker low-risk" style="top: 40%; left: 20%;" onclick="viewZoneDetails('publica')">
-                📍
-                <div class="map-marker-label">Pública (45)</div>
-            </div>
-
-            <!-- Área Restringida - Alto riesgo -->
-            <div class="map-marker high-risk" style="top: 15%; left: 75%;" onclick="viewZoneDetails('restringida')">
-                📍
-                <div class="map-marker-label">Restringida (35)</div>
-            </div>
-        </div>
-
-        <!-- Leyenda del mapa -->
-        <div class="map-legend">
-            <div class="legend-item">
-                <div class="legend-color" style="background: var(--danger-color);"></div>
-                <span>Alto Riesgo (>70 eventos)</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: var(--warning-color);"></div>
-                <span>Riesgo Medio (40-70)</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: var(--success-color);"></div>
-                <span>Bajo Riesgo (<40)</span>
-            </div>
-        </div>
+    <div class="summary-card warning">
+        <div class="card-value">8</div>
+        <div class="card-label">Zona de mayor riesgo</div>
+        <div class="card-trend" style="color: var(--primary-color)">Centro Urbano</div>
     </div>
 
-    <!-- TABLA DE ESTADÍSTICAS POR ZONA (RF-06) -->
-    <div class="zones-table-container">
-        <div class="table-header">
-            <div class="table-title">📊 Estadísticas Detalladas por Zona</div>
-        </div>
-
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>📍 Zona</th>
-                        <th>Total Eventos</th>
-                        <th>Sospechosos</th>
-                        <th>Normales</th>
-                        <th>Nivel de Riesgo</th>
-                        <th>Tendencia</th>
-                        <th>Distribución</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Centro Urbano -->
-                    <tr>
-                        <td><strong>Centro Urbano</strong></td>
-                        <td>85</td>
-                        <td><strong style="color: var(--danger-color);">32</strong></td>
-                        <td><strong style="color: var(--success-color);">53</strong></td>
-                        <td>
-                            <span class="zone-badge badge-high">Crítico</span>
-                        </td>
-                        <td>
-                            <span class="trend-indicator trend-up">
-                                ↑ +18%
-                            </span>
-                        </td>
-                        <td>
-                            <div class="percentage-bar">
-                                <div class="percentage-fill" style="width: 100%;"></div>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <!-- Zona Comercial -->
-                    <tr>
-                        <td><strong>Zona Comercial</strong></td>
-                        <td>62</td>
-                        <td><strong style="color: var(--danger-color);">18</strong></td>
-                        <td><strong style="color: var(--success-color);">44</strong></td>
-                        <td>
-                            <span class="zone-badge badge-medium">Alto</span>
-                        </td>
-                        <td>
-                            <span class="trend-indicator trend-up">
-                                ↑ +12%
-                            </span>
-                        </td>
-                        <td>
-                            <div class="percentage-bar">
-                                <div class="percentage-fill" style="width: 73%;"></div>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <!-- Zona de Vehículos -->
-                    <tr>
-                        <td><strong>Zona de Vehículos</strong></td>
-                        <td>58</td>
-                        <td><strong style="color: var(--danger-color);">22</strong></td>
-                        <td><strong style="color: var(--success-color);">36</strong></td>
-                        <td>
-                            <span class="zone-badge badge-medium">Medio</span>
-                        </td>
-                        <td>
-                            <span class="trend-indicator trend-up">
-                                ↑ +9%
-                            </span>
-                        </td>
-                        <td>
-                            <div class="percentage-bar">
-                                <div class="percentage-fill" style="width: 68%;"></div>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <!-- Zona Pública -->
-                    <tr>
-                        <td><strong>Zona Pública</strong></td>
-                        <td>45</td>
-                        <td><strong style="color: var(--danger-color);">8</strong></td>
-                        <td><strong style="color: var(--success-color);">37</strong></td>
-                        <td>
-                            <span class="zone-badge badge-low">Bajo</span>
-                        </td>
-                        <td>
-                            <span class="trend-indicator trend-stable">
-                                → -2%
-                            </span>
-                        </td>
-                        <td>
-                            <div class="percentage-bar">
-                                <div class="percentage-fill" style="width: 53%;"></div>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <!-- Área Restringida -->
-                    <tr>
-                        <td><strong>Área Restringida</strong></td>
-                        <td>35</td>
-                        <td><strong style="color: var(--danger-color);">15</strong></td>
-                        <td><strong style="color: var(--success-color);">20</strong></td>
-                        <td>
-                            <span class="zone-badge badge-high">Crítico</span>
-                        </td>
-                        <td>
-                            <span class="trend-indicator trend-up">
-                                ↑ +25%
-                            </span>
-                        </td>
-                        <td>
-                            <div class="percentage-bar">
-                                <div class="percentage-fill" style="width: 41%;"></div>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- SECCIÓN DE INSIGHTS Y RECOMENDACIONES -->
-    <div class="insights-section">
-        <div class="insights-title">💡 Insights y Recomendaciones</div>
-        <div class="insights-grid">
-            <div class="insight-item critical">
-                <div class="insight-title">⚠️ Centro Urbano requiere atención</div>
-                <div class="insight-description">
-                    La zona Centro Urbano registra el mayor número de eventos sospechosos (32). Se recomienda incrementar patrullaje y vigilancia en esta área.
-                </div>
-            </div>
-
-            <div class="insight-item warning">
-                <div class="insight-title">📈 Tendencia al alza en Área Restringida</div>
-                <div class="insight-description">
-                    La Área Restringida muestra un aumento del 25% en incidentes. Implementar medidas de seguridad adicionales.
-                </div>
-            </div>
-
-            <div class="insight-item">
-                <div class="insight-title">✓ Zona Pública bajo control</div>
-                <div class="insight-description">
-                    La Zona Pública muestra la tendencia más favorable con solo 8 eventos sospechosos. Continuar con estrategia actual.
-                </div>
-            </div>
-
-            <div class="insight-item critical">
-                <div class="insight-title">🚗 Incremento en robos de vehículos</div>
-                <div class="insight-description">
-                    La Zona de Vehículos registra 22 eventos sospechosos. Considerar sistemas de seguridad adicionales (iluminación, vigilancia).
-                </div>
-            </div>
-
-            <div class="insight-item warning">
-                <div class="insight-title">📊 Eficiencia de detección</div>
-                <div class="insight-description">
-                    El sistema detecta el 37.8% de eventos como potencialmente sospechosos. Tasa consistente con parámetros esperados.
-                </div>
-            </div>
-
-            <div class="insight-item">
-                <div class="insight-title">📅 Análisis temporal</div>
-                <div class="insight-description">
-                    Se recomienda realizar análisis nocturno/diurno para identificar patrones específicos de horarios de mayor incidencia.
-                </div>
-            </div>
-        </div>
+    <div class="summary-card success">
+        <div class="card-value">{{ resumen.tasa_resolucion }}</div>
+        <div class="card-label">Tasa de resolución</div>
+        <div class="card-trend">↑ 3% respecto a mes anterior</div>
     </div>
 </div>
 
+<div class="charts-section">
+    <div class="chart-card">
+        <div class="chart-title">📊 Eventos por Zona</div>
+        {% for z in zonas.values %}
+        <div class="bar-item">
+            <div class="bar-label">{{ z.nombre }}</div>
+            <div class="bar-container">
+                <div class="bar-fill
+                    {% if z.riesgo == 'Crítico' %}danger
+                    {% elif z.riesgo == 'Alto' %}warning
+                    {% else %}success{% endif %}"
+                    style="width:{% widthratio z.eventos resumen.total_eventos 100 %}%;">
+                    {{ z.eventos }}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">🎯 Distribución de Severidad</div>
+      <div style="text-align: center;">
+        <div class="pie-chart"
+          style="
+            --critica: {{ severidad.critica }};
+            --alta: {{ severidad.alta }};
+            --normal: {{ severidad.normal }};
+          ">
+        </div>
+        <div class="pie-legend">
+          <div class="pie-item">
+            <div class="pie-color" style="background: var(--danger-color);"></div>
+            <span>Crítica ({{ severidad.critica }}%)</span>
+          </div>
+          <div class="pie-item">
+            <div class="pie-color" style="background: var(--warning-color);"></div>
+            <span>Alta ({{ severidad.alta }}%)</span>
+          </div>
+          <div class="pie-item">
+            <div class="pie-color" style="background: var(--success-color);"></div>
+            <span>Normal ({{ severidad.normal }}%)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+</div> <div class="map-container">
+    <div class="map-title">📍 Mapa de Ubicación de Incidentes</div>
+    <div class="map-simulation">
+        <div class="map-grid"></div>
+        <div class="map-marker high-risk" style="top: 25%; left: 35%;" onclick="viewZoneDetails('centro')">
+            📍 <div class="map-marker-label">Centro (85 eventos)</div>
+        </div>
+        <div class="map-marker medium-risk" style="top: 50%; left: 70%;" onclick="viewZoneDetails('comercial')">
+            📍 <div class="map-marker-label">Comercial (62)</div>
+        </div>
+        <div class="map-marker medium-risk" style="top: 70%; left: 45%;" onclick="viewZoneDetails('vehiculos')">
+            📍 <div class="map-marker-label">Vehículos (58)</div>
+        </div>
+        <div class="map-marker low-risk" style="top: 40%; left: 20%;" onclick="viewZoneDetails('publica')">
+            📍 <div class="map-marker-label">Pública (45)</div>
+        </div>
+        <div class="map-marker high-risk" style="top: 15%; left: 75%;" onclick="viewZoneDetails('restringida')">
+            📍 <div class="map-marker-label">Restringida (35)</div>
+        </div>
+    </div>
+    <div class="map-legend">
+        <div class="legend-item"><div class="legend-color" style="background: var(--danger-color);"></div><span>Alto Riesgo (>70 eventos)</span></div>
+        <div class="legend-item"><div class="legend-color" style="background: var(--warning-color);"></div><span>Riesgo Medio (40-70)</span></div>
+        <div class="legend-item"><div class="legend-color" style="background: var(--success-color);"></div><span>Bajo Riesgo (<40)</span></div>
+    </div>
+</div>
+
+<div class="zones-table-container">
+    <div class="table-header">
+        <div class="table-title">📊 Estadísticas Detalladas por Zona</div>
+    </div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>📍 Zona</th>
+                    <th>Total Eventos</th>
+                    <th>Sospechosos</th>
+                    <th>Normales</th>
+                    <th>Nivel de Riesgo</th>
+                    <th>Tendencia</th>
+                    <th>Distribución</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for zona in zonas.values %}
+                <tr>
+                    <td>{{ zona.nombre }}</td>
+                    <td>{{ zona.eventos }}</td>
+                    <td class="danger">{{ zona.sospechosos }}</td>
+                    <td class="success">{{ zona.normales }}</td>
+                    <td><span class="badge {{ zona.riesgo|lower }}">{{ zona.riesgo }}</span></td>
+                    <td>
+                        {% if zona.tendencia == 'up' %}<span class="trend up">⬆ Aumento</span>
+                        {% elif zona.tendencia == 'down' %}<span class="trend down">⬇ Disminución</span>
+                        {% else %}<span class="trend stable">➖ Estable</span>{% endif %}
+                    </td>
+                    <td>{% widthratio zona.eventos resumen.total_eventos 100 %}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="insights-section">
+    <div class="insights-title">💡 Insights y Recomendaciones</div>
+    <div class="insights-grid">
+        <div class="insight-item critical">
+            <div class="insight-title">⚠️ Centro Urbano requiere atención</div>
+            <div class="insight-description">La zona Centro Urbano registra el mayor número de eventos sospechosos (32).</div>
+        </div>
+        <div class="insight-item warning">
+            <div class="insight-title">📈 Tendencia al alza en Área Restringida</div>
+            <div class="insight-description">La Área Restringida muestra un aumento del 25% en incidentes.</div>
+        </div>
+        <div class="insight-item">
+            <div class="insight-title">✓ Zona Pública bajo control</div>
+            <div class="insight-description">La Zona Pública muestra la tendencia más favorable.</div>
+        </div>
+        <div class="insight-item critical">
+            <div class="insight-title">🚗 Incremento en robos de vehículos</div>
+            <div class="insight-description">La Zona de Vehículos registra 22 eventos sospechosos.</div>
+        </div>
+        <div class="insight-item warning">
+            <div class="insight-title">📊 Eficiencia de detección</div>
+            <div class="insight-description">El sistema detecta el 37.8% de eventos sospechosos.</div>
+        </div>
+        <div class="insight-item">
+            <div class="insight-title">📅 Análisis temporal</div>
+            <div class="insight-description">Análisis nocturno/diurno para identificar patrones específicos.</div>
+        </div>
+    </div>
+</div>
 <!-- JavaScript -->
 <script>
     /**
@@ -1054,3 +898,36 @@
     });
 </script>
 {% endblock %}
+<script>
+fetch('/static/data/estadisticas.json')
+  .then(response => response.json())
+  .then(data => {
+
+    const maxEventos = Math.max(...data.zonas.map(z => z.eventos));
+
+    data.zonas.forEach(zona => {
+      const id = zona.nombre
+        .toLowerCase()
+        .replace(/ /g, '-')
+        .replace('á','a');
+
+      const porcentaje = (zona.eventos / maxEventos) * 100;
+
+      const barra = document.getElementById(`zona-${id}`);
+      const texto = document.getElementById(`zona-${id}-text`);
+
+      if (barra && texto) {
+        barra.style.width = porcentaje + '%';
+        barra.innerText = zona.eventos;
+        texto.innerText = `${zona.eventos} eventos`;
+      }
+    });
+
+    document.getElementById('critica').innerText =
+      `Crítica (${data.severidad.critica}%)`;
+    document.getElementById('alta').innerText =
+      `Alta (${data.severidad.alta}%)`;
+    document.getElementById('normal').innerText =
+      `Normal (${data.severidad.normal}%)`;
+  });
+</script>

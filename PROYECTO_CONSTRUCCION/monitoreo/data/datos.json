@@ -1,0 +1,71 @@
+{
+  "resumen": {
+    "total_eventos": 325,
+    "eventos_sospechosos": 145,
+    "eventos_normales": 180,
+    "zona_mayor_riesgo": "Centro Urbano",
+    "tasa_resolucion": "82%"
+  },
+
+  "severidad": {
+    "critica": 36,
+    "alta": 33,
+    "normal": 31
+  },
+
+  "zonas": {
+    "centro_urbano": {
+      "nombre": "Centro Urbano",
+      "eventos": 85,
+      "sospechosos": 40,
+      "normales": 45,
+      "riesgo": "Alto",
+      "tendencia": "up"
+    },
+
+    "zona_comercial": {
+      "nombre": "Zona Comercial",
+      "eventos": 62,
+      "sospechosos": 28,
+      "normales": 34,
+      "riesgo": "Crítico",
+      "tendencia": "up"
+    },
+
+    "zona_vehiculos": {
+      "nombre": "Zona de Vehículos",
+      "eventos": 58,
+      "sospechosos": 22,
+      "normales": 36,
+      "riesgo": "Alto",
+      "tendencia": "stable"
+    },
+
+    "zona_publica": {
+      "nombre": "Zona Pública",
+      "eventos": 45,
+      "sospechosos": 18,
+      "normales": 27,
+      "riesgo": "Medio",
+      "tendencia": "down"
+    },
+
+    "area_restringida": {
+      "nombre": "Área Restringida",
+      "eventos": 35,
+      "sospechosos": 25,
+      "normales": 10,
+      "riesgo": "Crítico",
+      "tendencia": "up"
+    },
+
+    "zona_residencial": {
+      "nombre": "Zona Residencial",
+      "eventos": 40,
+      "sospechosos": 12,
+      "normales": 28,
+      "riesgo": "Bajo",
+      "tendencia": "stable"
+    }
+  }
+}

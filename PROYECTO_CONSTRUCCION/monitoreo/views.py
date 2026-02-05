@@ -68,6 +68,64 @@ def video_feed(request):
     )
 
 
+from pathlib import Path
+import json
+from django.contrib.auth.decorators import login_required
+# RF-04, RF-06: ESTADÍSTICAS
+# ============================================================================
+@login_required(login_url='monitoreo:login')
+def estadisticas(request):
+
+    json_path = Path(__file__).resolve().parent / 'data' / 'datos.json'
+    with open(json_path, encoding='utf-8') as f:
+        datos = json.load(f)
+
+    # 🔹 filtros reales desde la URL
+    tipo = request.GET.get('tipo', 'all')
+    zona = request.GET.get('zona', '')
+    rango = request.GET.get('rango', 'month')  # (simulado)
+
+    zonas_filtradas = {}
+
+    for key, z in datos['zonas'].items():
+
+        # filtro por zona
+        if zona and zona not in key:
+            continue
+
+        # filtro por tipo
+        if tipo == 'suspicious' and z['sospechosos'] == 0:
+            continue
+        if tipo == 'normal' and z['normales'] == 0:
+            continue
+
+        zonas_filtradas[key] = z
+
+    total_eventos = sum(z['eventos'] for z in zonas_filtradas.values()) or 1
+
+    zonas_barras = [
+        {
+            'zona': z['nombre'],
+            'total': z['eventos'],
+            'porcentaje': round((z['eventos'] / total_eventos) * 100, 1),
+            'nivel': z['riesgo'].upper()
+        }
+        for z in zonas_filtradas.values()
+    ]
+
+    context = {
+        'resumen': datos['resumen'],
+        'zonas': zonas_filtradas,
+        'zonas_barras': zonas_barras,
+        'severidad': datos.get('severidad', {}),
+        'filtro_zona': zona,
+        'filtro_tipo': tipo,
+        'filtro_rango': rango
+    }
+
+    return render(request, 'monitoreo/estadisticas.html', context)
+
+
 # ============================================================================
 # RF-07: AUTENTICACIÓN
 # ============================================================================
@@ -162,19 +220,6 @@ def eventos(request):
 # RF-04, RF-06: ESTADÍSTICAS
 # ============================================================================
 
-@login_required(login_url='monitoreo:login')
-def estadisticas(request):
-    """
-    Dashboard de estadísticas y análisis por zonas.
-    
-    RF-06: Visualizar estadísticas por zonas
-    RF-04: Mostrar ubicación del incidente
-    """
-    context = {
-        'page_title': 'Estadísticas y Análisis',
-        'user': request.user,
-    }
-    return render(request, 'monitoreo/estadisticas.html', context)
 
 
 
