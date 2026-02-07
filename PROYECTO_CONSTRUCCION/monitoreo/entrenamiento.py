@@ -1,23 +1,41 @@
-from ultralytics import YOLO
+# camara.py
 import cv2
+from ultralytics import YOLO
 
 model = YOLO("yolov8n.pt")
 
-cap = cv2.VideoCapture("data/robo.avi")
+def camara_seguridad_stream():
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
+    cap = cv2.VideoCapture(
+        r"C:\Users\Edison\Desktop\nuevo2\Avances_Proyecto\PROYECTO_CONSTRUCCION\monitoreo\data\robo.avi"
+    )
 
-    results = model(frame, conf=0.1, imgsz=640)
+    if not cap.isOpened():
+        print("ERROR: No se pudo abrir el video")
+        return
 
-    annotated = results[0].plot()
+    while True:
+        ret, frame = cap.read()
 
-    cv2.imshow("Test", annotated)
+        if not ret:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            continue
 
-    if cv2.waitKey(1) == 27:
-        break
+        # ⭐ PASO CLAVE — detección
+        results = model(frame, conf=0.2)
 
-cap.release()
-cv2.destroyAllWindows()
+        # Dibujar cajas
+        annotated = results[0].plot()
+
+        # Enviar al stream
+        _, buffer = cv2.imencode('.jpg', annotated)
+        frame_bytes = buffer.tobytes()
+
+        yield (
+            b'--frame\r\n'
+            b'Content-Type: image/jpeg\r\n\r\n' +
+            frame_bytes +
+            b'\r\n'
+        )
+
+    cap.release()
