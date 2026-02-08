@@ -68,7 +68,42 @@ class Ubicacion(models.Model):
      latitud = models.FloatField()
      longitud = models.FloatField()
      fecha = models.DateTimeField(auto_now_add=True)
+     ciudad = models.CharField(max_length=100, blank=True, null=True)
 
      def __str__(self):
-        return f"{self.latitud}, {self.longitud} - {self.fecha}"
+        return f"{self.latitud}, {self.longitud} - {self.fecha} - {self.ciudad}"
 
+class Alertas(models.Model):
+
+    ACTIVIDAD_ESTADO = [
+        ("Pendiente", "Pendiente"),
+        ("Activo", "Activo"),
+    ]
+
+    ACTIVIDAD_SEVERIDAD = [
+        ("Alta", "Alta"),
+        ("Media", "Media"),
+        ("Baja", "Baja"),
+    ]
+
+    ubicacion = models.ForeignKey(Ubicacion, on_delete=models.CASCADE)
+
+    comportamiento = models.CharField(max_length=50)
+
+    severidad = models.CharField(
+        max_length=10,
+        choices=ACTIVIDAD_SEVERIDAD
+    )
+
+    hora = models.DateTimeField(auto_now_add=True)
+
+    descripcion = models.TextField(blank=True)
+
+    estado = models.CharField(
+        max_length=10,
+        choices=ACTIVIDAD_ESTADO,
+        default="Pendiente"
+    )
+
+    def __str__(self):
+        return f"{self.comportamiento} - {self.severidad}"

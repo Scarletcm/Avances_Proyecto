@@ -1,52 +1,103 @@
-import json
 
-from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, StreamingHttpResponse, JsonResponse
-from django.utils import timezone
 from django.views.decorators import gzip
-from django.db.models import Count
 
-from .models import TrainingVideo, TrainedModel, DetectionLog, Ubicacion
+from .models import TrainingVideo, TrainedModel, DetectionLog, Ubicacion, Alertas
 from .forms import LoginForm, TrainingVideoForm, TrainingBatchForm
 from .services.video_service import CameraManager, VideoStreamGenerator
 from .services.detection_service import detection_service, training_service
 from .utils.validators import VideoValidator, TrainingValidator
 from .entrenamiento import camara_seguridad_stream
-
-
-
 import requests
 from django.shortcuts import render
+from django.utils import timezone
 
 
-
+# MAPA
 def mapa(request):
     ubicacion = Ubicacion.objects.latest('id')
-    lat = ubicacion.latitud
-    lon = ubicacion.longitud
 
     return render(request, 'monitoreo/mapa.html', {
-        'lat': lat,
-        'lon': lon,
+        'lat': ubicacion.latitud,
+        'lon': ubicacion.longitud,
+        'ciudad': ubicacion.ciudad
     })
 
 
-
-
+# RECIBIR UBICACION
 def recibir_ubicacion(request):
-    if request.method == "POST":
-        data = json.loads(request.body)
 
-        Ubicacion.objects.create(
-            latitud=data["lat"],
-            longitud=data["lon"]
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+
+    # ---------- Leer JSON ----------
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+        lat = float(data["lat"])
+        lon = float(data["lon"])
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "JSON inválido"}, status=400)
+    except (KeyError, ValueError):
+        return JsonResponse({"error": "Datos lat/lon inválidos"}, status=400)
+
+    # ---------- Obtener ciudad ----------
+    ciudad = "Desconocida"
+
+    try:
+        response = requests.get(
+            "https://nominatim.openstreetmap.org/reverse",
+            params={"lat": lat, "lon": lon, "format": "json"},
+            headers={"User-Agent": "monitoreo_app"},
+            timeout=8
         )
 
-        return JsonResponse({"mensaje": "Ubicación guardada"})
-    return None
+        if response.status_code == 200:
+            info = response.json()
+            addr = info.get("address", {})
 
+            keys = [
+                "city",
+                "town",
+                "municipality",
+                "county",
+                "state_district",
+                "region",
+                "state"
+            ]
+
+            for k in keys:
+                if k in addr:
+                    ciudad = addr[k]
+                    break
+
+    except requests.RequestException:
+        # NO rompemos el sistema si falla internet
+        pass
+
+    # ---------- Guardar SIEMPRE nueva ubicación ----------
+    ubicacion = Ubicacion.objects.create(
+        latitud=lat,
+        longitud=lon,
+        ciudad=ciudad
+    )
+
+    # ---------- Crear alerta ----------
+    Alertas.objects.create(
+        ubicacion=ubicacion,
+        comportamiento="Movimiento Sospechoso",
+        severidad="Alta",
+        hora=timezone.now(),
+        descripcion="Movimiento detectado",
+        estado="Activo"
+    )
+
+    return JsonResponse({
+        "mensaje": "Ubicación guardada",
+        "ciudad": ciudad
+    })
 
 # ============================================================================
 # SERVICIOS GLOBALES
@@ -189,16 +240,105 @@ def dashboard(request):
 @login_required(login_url='monitoreo:login')
 def alertas(request):
     """
-    Panel de alertas.
+    Panel de alertas con filtros y estadísticas.
     RF-03: Generar alertas automáticas
     """
-    context = {
-        'page_title': 'Panel de Alertas',
-        'user': request.user,
+    # Obtener todas las alertas ordenadas por hora
+    alertas_queryset = Alertas.objects.all().order_by("-hora")
+
+    # Aplicar filtros si existen
+    severidad_filter = request.GET.get('severidad', '')
+    estado_filter = request.GET.get('estado', '')
+
+    if severidad_filter:
+        alertas_queryset = alertas_queryset.filter(severidad=severidad_filter)
+
+    if estado_filter:
+        alertas_queryset = alertas_queryset.filter(estado=estado_filter)
+
+    # Calcular estadísticas
+    estadisticas = {
+        'total': alertas_queryset.count(),
+        'alta': alertas_queryset.filter(severidad='Alta').count(),
+        'media': alertas_queryset.filter(severidad='Media').count(),
+        'baja': alertas_queryset.filter(severidad='Baja').count(),
+        'pendientes': alertas_queryset.filter(estado='Pendiente').count(),
+        'activas': alertas_queryset.filter(estado='Activo').count(),
     }
+
+    context = {
+        'alerta': alertas_queryset,
+        'estadisticas': estadisticas,
+        'severidad_filter': severidad_filter,
+        'estado_filter': estado_filter,
+    }
+
     return render(request, 'monitoreo/alertas.html', context)
 
 
+def resolver_alerta(request, alerta_id):
+    """
+    Marca una alerta como resuelta (cambia el estado).
+    """
+    if request.method == 'POST':
+        alerta = get_object_or_404(Alertas, id=alerta_id)
+
+        # Cambiar el estado a Activo (o podrías crear un nuevo estado "Resuelta")
+        alerta.estado = 'Activo'
+        alerta.save()
+
+        messages.success(request, f'Alerta #{alerta_id} resuelta correctamente.')
+
+    return redirect('alertas')
+
+
+def detalle_alerta(request, alerta_id):
+    """
+    Muestra el detalle completo de una alerta específica.
+    """
+    alerta = get_object_or_404(Alertas, id=alerta_id)
+
+    context = {
+        'alerta': alerta,
+    }
+
+    return render(request, 'monitoreo/detalle_alerta.html', context)
+
+
+def alertas_api(request):
+    """
+    API endpoint para obtener alertas en formato JSON.
+    Útil para actualizaciones en tiempo real con AJAX.
+    """
+    alertas_queryset = Alertas.objects.all().order_by("-hora")
+
+    # Filtros opcionales
+    severidad = request.GET.get('severidad', '')
+    estado = request.GET.get('estado', '')
+
+    if severidad:
+        alertas_queryset = alertas_queryset.filter(severidad=severidad)
+
+    if estado:
+        alertas_queryset = alertas_queryset.filter(estado=estado)
+
+    # Serializar datos
+    alertas_data = []
+    for alerta in alertas_queryset:
+        alertas_data.append({
+            'id': alerta.id,
+            'ubicacion': alerta.ubicacion.nombre,
+            'comportamiento': alerta.comportamiento,
+            'severidad': alerta.severidad,
+            'hora': alerta.hora.strftime('%Y-%m-%d %H:%M:%S'),
+            'descripcion': alerta.descripcion,
+            'estado': alerta.estado,
+        })
+
+    return JsonResponse({
+        'alertas': alertas_data,
+        'total': len(alertas_data)
+    })
 # ============================================================================
 # RF-05: EVENTOS
 # ============================================================================

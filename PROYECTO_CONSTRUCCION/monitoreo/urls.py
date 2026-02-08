@@ -17,6 +17,15 @@ urlpatterns = [
     
     # RF-03: Gestión de alertas
     path('alertas/', views.alertas, name='alertas'),
+
+    # Resolver una alerta
+    path('alertas/<int:alerta_id>/resolver/', views.resolver_alerta, name='resolver_alerta'),
+
+    # Ver detalle de una alerta
+    path('alertas/<int:alerta_id>/', views.detalle_alerta, name='detalle_alerta'),
+
+    # API endpoint para obtener alertas en JSON
+    path('api/alertas/', views.alertas_api, name='alertas_api'),
     
     # RF-05: Registro de eventos
     path('eventos/', views.eventos, name='eventos'),
