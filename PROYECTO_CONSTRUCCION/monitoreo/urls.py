@@ -28,7 +28,14 @@ urlpatterns = [
     path('api/alertas/', views.alertas_api, name='alertas_api'),
     
     # RF-05: Registro de eventos
-    path('eventos/', views.eventos, name='eventos'),
+    path('eventos/', views.eventos_view, name='eventos'),
+
+    path('eventos/<int:evento_id>/detalles/', views.evento_detalles_json, name='evento_detalles'),
+    path('eventos/exportar/', views.exportar_eventos_csv, name='exportar_eventos'),
+    path('eventos/<int:evento_id>/evidencia/', views.descargar_evidencia, name='descargar_evidencia'),
+
+    path('eventos/<int:evento_id>/reporte/', views.generar_reporte_evento, name='reporte_evento'),
+
     
     # RF-06 y RF-04: Estadísticas y ubicación de incidentes
     path('estadisticas/', views.estadisticas, name='estadisticas'),

@@ -1,15 +1,23 @@
+import csv
+import datetime
 
 from django.contrib import messages
+from django.core.paginator import Paginator
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.http import HttpResponse, StreamingHttpResponse, JsonResponse
 from django.views.decorators import gzip
-
+from sympy import Q
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse, HttpResponse
+from django.core.paginator import Paginator
+from django.db.models import Q, Count
+import csv
+from datetime import datetime, timedelta
 from .models import TrainingVideo, TrainedModel, DetectionLog, Ubicacion, Alertas
 from .forms import LoginForm, TrainingVideoForm, TrainingBatchForm
 from .services.video_service import CameraManager, VideoStreamGenerator
 from .services.detection_service import detection_service, training_service
-from .utils.validators import VideoValidator, TrainingValidator
 from .entrenamiento import camara_seguridad_stream
 import requests
 from django.shortcuts import render
@@ -344,18 +352,248 @@ def alertas_api(request):
 # ============================================================================
 
 @login_required(login_url='monitoreo:login')
-def eventos(request):
-    """
-    Registro de eventos detectados.
-    RF-05: Registrar eventos detectados
-    """
+def eventos_view(request):
+
+    # Obtener todas las alertas
+    alertas = Alertas.objects.select_related('ubicacion').all().order_by('-hora')
+
+    # Filtros
+    search = request.GET.get('search', '')
+    severidad = request.GET.get('severidad', '')
+    estado = request.GET.get('estado', '')
+    ubicacion_id = request.GET.get('ubicacion', '')
+
+    # Aplicar filtros
+    if search:
+        alertas = alertas.filter(
+            Q(comportamiento__icontains=search) |
+            Q(descripcion__icontains=search) |
+            Q(ubicacion__nombre__icontains=search)
+        )
+
+    if severidad:
+        alertas = alertas.filter(severidad=severidad)
+
+    if estado:
+        alertas = alertas.filter(estado=estado)
+
+    if ubicacion_id:
+        alertas = alertas.filter(ubicacion_id=ubicacion_id)
+
+    # Estadísticas
+    total_eventos = alertas.count()
+    eventos_alta = alertas.filter(severidad='Alta').count()
+    eventos_media = alertas.filter(severidad='Media').count()
+    eventos_baja = alertas.filter(severidad='Baja').count()
+
+    # Paginación
+    paginator = Paginator(alertas, 10)  # 10 eventos por página
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    # Obtener todas las ubicaciones para el filtro
+    ubicaciones = Ubicacion.objects.all()
+
     context = {
-        'page_title': 'Registro de Eventos',
-        'user': request.user,
+        'alertas': page_obj,
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
+        'total_eventos': total_eventos,
+        'eventos_alta': eventos_alta,
+        'eventos_media': eventos_media,
+        'eventos_baja': eventos_baja,
+        'ubicaciones': ubicaciones,
     }
+
     return render(request, 'monitoreo/eventos.html', context)
 
 
+def evento_detalles_json(request, evento_id):
+    """
+    API endpoint para obtener detalles de un evento en formato JSON
+    Utilizado por el modal de detalles
+    """
+    alerta = get_object_or_404(Alertas, id=evento_id)
+
+    data = {
+        'id': alerta.id,
+        'hora': alerta.hora.strftime('%Y-%m-%d %H:%M:%S'),
+        'ubicacion': f"{alerta.ubicacion.nombre} - {alerta.ubicacion.zona}",
+        'comportamiento': alerta.comportamiento,
+        'severidad': alerta.severidad,
+        'estado': alerta.estado,
+        'descripcion': alerta.descripcion,
+    }
+
+    return JsonResponse(data)
+
+
+def exportar_eventos_csv(request):
+    """
+    Exportar todos los eventos a formato CSV
+    """
+    # Obtener eventos con filtros si se aplicaron
+    alertas = Alertas.objects.select_related('ubicacion').all().order_by('-hora')
+
+    # Aplicar mismos filtros que en la vista principal
+    search = request.GET.get('search', '')
+    severidad = request.GET.get('severidad', '')
+    estado = request.GET.get('estado', '')
+    ubicacion_id = request.GET.get('ubicacion', '')
+
+    if search:
+        alertas = alertas.filter(
+            Q(comportamiento__icontains=search) |
+            Q(descripcion__icontains=search) |
+            Q(ubicacion__nombre__icontains=search)
+        )
+
+    if severidad:
+        alertas = alertas.filter(severidad=severidad)
+
+    if estado:
+        alertas = alertas.filter(estado=estado)
+
+    if ubicacion_id:
+        alertas = alertas.filter(ubicacion_id=ubicacion_id)
+
+    # Crear respuesta CSV
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="eventos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+    response.write('\ufeff')  # BOM para Excel
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'ID',
+        'Fecha/Hora',
+        'Ubicación',
+        'Zona',
+        'Comportamiento',
+        'Severidad',
+        'Estado',
+        'Descripción'
+    ])
+
+    for alerta in alertas:
+        writer.writerow([
+            alerta.id,
+            alerta.hora.strftime('%Y-%m-%d %H:%M:%S'),
+            alerta.ubicacion.nombre,
+            alerta.ubicacion.zona,
+            alerta.comportamiento,
+            alerta.severidad,
+            alerta.estado,
+            alerta.descripcion
+        ])
+
+    return response
+
+
+def descargar_evidencia(request, evento_id):
+    """
+    Descargar evidencia relacionada con un evento específico
+    """
+    alerta = get_object_or_404(Alertas, id=evento_id)
+
+    # Aquí puedes implementar la lógica para descargar imágenes, videos, etc.
+    # Por ahora, retorna un archivo de texto con los detalles
+
+    response = HttpResponse(content_type='text/plain')
+    response['Content-Disposition'] = f'attachment; filename="evidencia_evento_{alerta.id}.txt"'
+
+    content = f"""
+REPORTE DE EVIDENCIA - EVENTO #{alerta.id}
+{'=' * 50}
+
+Fecha y Hora: {alerta.hora.strftime('%Y-%m-%d %H:%M:%S')}
+Ubicación: {alerta.ubicacion.nombre}
+Zona: {alerta.ubicacion.zona}
+Comportamiento Detectado: {alerta.comportamiento}
+Severidad: {alerta.severidad}
+Estado: {alerta.estado}
+
+Descripción:
+{alerta.descripcion}
+
+{'=' * 50}
+Este documento fue generado automáticamente por el Sistema de Monitoreo.
+Fecha de generación: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    """
+
+    response.write(content)
+    return response
+
+
+def generar_reporte_evento(request, evento_id):
+
+    alerta = get_object_or_404(Alertas, id=evento_id)
+
+    response = HttpResponse(content_type='text/plain')
+    response['Content-Disposition'] = f'attachment; filename="reporte_evento_{alerta.id}.txt"'
+
+    content = f"""
+{'=' * 60}
+        REPORTE DETALLADO DE EVENTO DE SEGURIDAD
+{'=' * 60}
+
+INFORMACIÓN GENERAL
+-------------------
+ID del Evento: #{alerta.id}
+Fecha: {alerta.hora.strftime('%d/%m/%Y')}
+Hora: {alerta.hora.strftime('%H:%M:%S')}
+Estado Actual: {alerta.estado}
+
+UBICACIÓN
+---------
+Nombre: {alerta.ubicacion.nombre}
+Zona: {alerta.ubicacion.zona}
+Coordenadas: {alerta.ubicacion.latitud}, {alerta.ubicacion.longitud}
+
+DETALLES DEL EVENTO
+-------------------
+Tipo de Comportamiento: {alerta.comportamiento}
+Nivel de Severidad: {alerta.severidad}
+
+DESCRIPCIÓN COMPLETA
+--------------------
+{alerta.descripcion if alerta.descripcion else 'Sin descripción adicional'}
+
+RECOMENDACIONES
+---------------
+"""
+
+    # Recomendaciones basadas en severidad
+    if alerta.severidad == 'Alta':
+        content += """
+- Requiere atención INMEDIATA del personal de seguridad
+- Verificar y activar protocolos de emergencia si es necesario
+- Documentar todas las acciones tomadas
+- Notificar a supervisores y autoridades competentes
+"""
+    elif alerta.severidad == 'Media':
+        content += """
+- Requiere seguimiento por parte del personal de seguridad
+- Verificar situación en campo
+- Mantener monitoreo constante del área
+- Documentar evolución del evento
+"""
+    else:
+        content += """
+- Mantener vigilancia rutinaria
+- Registrar en bitácora estándar
+- No requiere acción inmediata
+"""
+
+    content += f"""
+
+{'=' * 60}
+Reporte generado: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+Sistema de Monitoreo y Detección de Comportamiento Sospechoso
+{'=' * 60}
+    """
+
+    response.write(content)
+    return response
 # ============================================================================
 # RF-04, RF-06: ESTADÍSTICAS
 # ============================================================================
