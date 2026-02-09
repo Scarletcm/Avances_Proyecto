@@ -599,7 +599,124 @@ Sistema de Monitoreo y Detección de Comportamiento Sospechoso
 # ============================================================================
 
 
+def estadisticas_dashboard(request):
+    """Vista de estadísticas usando solo los modelos existentes"""
 
+    # Obtener filtros
+    rango = request.GET.get('rango', 'month')
+    tipo_filtro = request.GET.get('tipo', 'all')
+
+    # Calcular rango de fechas
+    fecha_fin = timezone.now()
+    if rango == 'today':
+        fecha_inicio = fecha_fin.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif rango == 'week':
+        fecha_inicio = fecha_fin - timedelta(days=7)
+    elif rango == 'month':
+        fecha_inicio = fecha_fin - timedelta(days=30)
+    elif rango == 'year':
+        fecha_inicio = fecha_fin - timedelta(days=365)
+    else:
+        fecha_inicio = fecha_fin - timedelta(days=30)
+
+    # Filtrar alertas
+    alertas_query = Alertas.objects.filter(
+        hora__gte=fecha_inicio,
+        hora__lte=fecha_fin
+    ).select_related('ubicacion')
+
+    # Aplicar filtro de tipo
+    if tipo_filtro == 'suspicious':
+        alertas_query = alertas_query.filter(severidad__in=['Alta', 'Media'])
+    elif tipo_filtro == 'normal':
+        alertas_query = alertas_query.filter(severidad='Baja')
+
+    # RESUMEN GENERAL
+    total_eventos = alertas_query.count()
+    eventos_sospechosos = alertas_query.filter(severidad__in=['Alta', 'Media']).count()
+    eventos_normales = total_eventos - eventos_sospechosos
+    eventos_resueltos = alertas_query.filter(estado='Activo').count()
+    tasa_resolucion = f"{(eventos_resueltos / total_eventos * 100):.1f}%" if total_eventos > 0 else "0%"
+
+    resumen = {
+        'total_eventos': total_eventos,
+        'eventos_sospechosos': eventos_sospechosos,
+        'eventos_normales': eventos_normales,
+        'tasa_resolucion': tasa_resolucion,
+    }
+
+    # ESTADÍSTICAS POR CIUDAD (usamos ciudad como "zona")
+    zonas_stats = {}
+    ciudades = alertas_query.values_list('ubicacion__ciudad', flat=True).distinct()
+
+    for ciudad in ciudades:
+        if not ciudad:
+            continue
+
+        alertas_ciudad = alertas_query.filter(ubicacion__ciudad=ciudad)
+        total = alertas_ciudad.count()
+        sospechosos = alertas_ciudad.filter(severidad__in=['Alta', 'Media']).count()
+        normales = total - sospechosos
+        altas = alertas_ciudad.filter(severidad='Alta').count()
+
+        # Determinar nivel de riesgo
+        if altas > 15 or sospechosos > 30:
+            nivel_riesgo = 'Crítico'
+            badge_class = 'badge-high'
+        elif altas > 5 or sospechosos > 15:
+            nivel_riesgo = 'Alto'
+            badge_class = 'badge-medium'
+        else:
+            nivel_riesgo = 'Bajo'
+            badge_class = 'badge-low'
+
+        # Calcular tendencia
+        fecha_inicio_anterior = fecha_inicio - (fecha_fin - fecha_inicio)
+        eventos_anteriores = Alertas.objects.filter(
+            ubicacion__ciudad=ciudad,
+            hora__gte=fecha_inicio_anterior,
+            hora__lt=fecha_inicio
+        ).count()
+
+        if eventos_anteriores > 0:
+            cambio = ((total - eventos_anteriores) / eventos_anteriores) * 100
+            tendencia = 'up' if cambio > 10 else ('down' if cambio < -10 else 'stable')
+        else:
+            tendencia = 'up' if total > 0 else 'stable'
+
+        zonas_stats[ciudad] = {
+            'nombre': ciudad,
+            'eventos': total,
+            'sospechosos': sospechosos,
+            'normales': normales,
+            'riesgo': nivel_riesgo,
+            'badge_class': badge_class,
+            'tendencia': tendencia,
+        }
+
+    # DISTRIBUCIÓN DE SEVERIDAD
+    if total_eventos > 0:
+        critica = (alertas_query.filter(severidad='Alta').count() / total_eventos) * 100
+        alta = (alertas_query.filter(severidad='Media').count() / total_eventos) * 100
+        normal = (alertas_query.filter(severidad='Baja').count() / total_eventos) * 100
+    else:
+        critica = alta = normal = 33.3
+
+    severidad = {
+        'critica': round(critica, 1),
+        'alta': round(alta, 1),
+        'normal': round(normal, 1),
+    }
+
+    context = {
+        'resumen': resumen,
+        'zonas': zonas_stats,
+        'severidad': severidad,
+        'rango_seleccionado': rango,
+        'tipo_seleccionado': tipo_filtro,
+    }
+
+    return render(request, 'monitoreo/estadisticas.html', context)
 
 # ============================================================================
 # VISTAS LEGACY (Compatibilidad)

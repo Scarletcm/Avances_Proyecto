@@ -38,7 +38,7 @@ urlpatterns = [
 
     
     # RF-06 y RF-04: Estadísticas y ubicación de incidentes
-    path('estadisticas/', views.estadisticas, name='estadisticas'),
+    path('estadisticas/', views.estadisticas_dashboard, name='estadisticas'),
 
     path("ubicacion/", views.recibir_ubicacion, name="ubicacion"),
 
