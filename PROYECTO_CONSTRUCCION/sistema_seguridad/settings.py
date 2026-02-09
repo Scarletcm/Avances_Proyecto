@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 
+import dj_database_url
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -74,10 +76,11 @@ WSGI_APPLICATION = 'sistema_seguridad.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.parse(
+        "postgresql://grupo4_qtwt_user:BpLatjnlymSCBBnhe9CCTpNXjSsuCrkV@dpg-d64i0bi4d50c73efvgmg-a.oregon-postgres.render.com/grupo4_qtwt",
+        conn_max_age=600,
+        ssl_require=True
+    )
 }
 
 
