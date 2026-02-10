@@ -10,7 +10,8 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     
     # Video stream en tiempo real
-    path('video_feed/', views.video_feed, name='video_feed'),
+    path("video/", views.video_feed, name="video_feed"),
+
     
     # Dashboard principal
     path('dashboard/', views.dashboard, name='dashboard'),

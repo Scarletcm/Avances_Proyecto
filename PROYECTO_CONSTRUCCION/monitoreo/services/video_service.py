@@ -6,6 +6,8 @@ import cv2
 import threading
 import time
 from django.utils import timezone
+from .optical_flow_service import OpticalFlowService
+
 
 
 class CameraManager:
@@ -95,46 +97,55 @@ class CameraManager:
 
 
 class VideoStreamGenerator:
-    """Generador de frames para streaming MJPEG"""
-    
+    """Generador de frames para streaming MJPEG + Optical Flow"""
+
     def __init__(self, camera_manager=None, frame_quality=95):
         self.camera_manager = camera_manager or CameraManager()
         self.frame_quality = frame_quality
         self.fps = 30
         self.frame_delay = 1.0 / self.fps
-    
+        self.optical_flow = OpticalFlowService()
+
     def generate_frames(self):
-        """Genera frames en formato MJPEG"""
         while True:
             try:
                 frame = self.camera_manager.capture_frame()
-                
+
                 if frame is None:
+                    print("⚠️ No se pudo capturar frame")
                     continue
-                
-                # Agregar metadata
+
+                # 🔥 OPTICAL FLOW
+                motion_data = self.optical_flow.process(frame)
+
+                if motion_data and motion_data["motion_level"] > 1.5:
+                    cv2.putText(
+                        frame,
+                        f"Movimiento: {motion_data['motion_level']:.2f}",
+                        (20, 120),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.7,
+                        (0, 0, 255),
+                        2
+                    )
+
                 frame = self.camera_manager.add_metadata(frame)
-                
-                # Codificar a JPEG
-                ret, buffer = cv2.imencode('.jpg', frame, [
-                    cv2.IMWRITE_JPEG_QUALITY, self.frame_quality
-                ])
-                
+
+                ret, buffer = cv2.imencode(
+                    '.jpg', frame,
+                    [cv2.IMWRITE_JPEG_QUALITY, self.frame_quality]
+                )
+
                 if not ret:
                     continue
-                
-                frame_bytes = buffer.tobytes()
-                
-                # Formato MJPEG
+
                 yield (
-                    b'--frame\r\n'
-                    b'Content-Type: image/jpeg\r\n'
-                    b'Content-Length: ' + str(len(frame_bytes)).encode() + b'\r\n\r\n'
-                    + frame_bytes + b'\r\n'
+                        b'--frame\r\n'
+                        b'Content-Type: image/jpeg\r\n\r\n'
+                        + buffer.tobytes() + b'\r\n'
                 )
-                
+
                 time.sleep(self.frame_delay)
-                
+
             except Exception as e:
-                print(f"Error en stream: {str(e)}")
-                continue
+                print("🔥 ERROR STREAM:", e)

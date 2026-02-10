@@ -22,7 +22,8 @@ from .entrenamiento import camara_seguridad_stream
 import requests
 from django.shortcuts import render
 from django.utils import timezone
-
+from django.http import StreamingHttpResponse
+from .services.video_service import VideoStreamGenerator
 
 # MAPA
 def mapa(request):
@@ -117,13 +118,10 @@ video_generator = VideoStreamGenerator(camera_manager)
 
 @gzip.gzip_page
 def video_feed(request):
-    """
-    Stream de video en tiempo real (MJPEG)
-    Utiliza VideoStreamGenerator para generar frames
-    """
+    generator = VideoStreamGenerator()
     return StreamingHttpResponse(
-        camara_seguridad_stream(),
-        content_type="multipart/x-mixed-replace; boundary=frame"
+        generator.generate_frames(),
+        content_type='multipart/x-mixed-replace; boundary=frame'
     )
 
 
