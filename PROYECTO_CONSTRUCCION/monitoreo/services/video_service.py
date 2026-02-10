@@ -33,18 +33,18 @@ class CameraManager:
         self.current_frame = None
         self._initialized = True
     
-    def get_camera(self, camera_id=0, width=1280, height=720, fps=30):
+    def get_camera(self,  width=1280, height=720, fps=30):
         """Obtiene instancia de cámara con configuración específica"""
         if self.camera is None:
-            self.camera = cv2.VideoCapture(camera_id)
+            self.camera = cv2.VideoCapture(r"C:\Users\Edison\Desktop\nuevo2\Avances_Proyecto\PROYECTO_CONSTRUCCION\monitoreo\data\robo.avi")
             self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
             self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
             self.camera.set(cv2.CAP_PROP_FPS, fps)
         return self.camera
     
-    def capture_frame(self, camera_id=0):
+    def capture_frame(self):
         """Captura un frame de la cámara"""
-        camera = self.get_camera(camera_id)
+        camera = self.get_camera(r"C:\Users\Edison\Desktop\nuevo2\Avances_Proyecto\PROYECTO_CONSTRUCCION\monitoreo\data\robo.avi")
         ret, frame = camera.read()
         
         if ret:

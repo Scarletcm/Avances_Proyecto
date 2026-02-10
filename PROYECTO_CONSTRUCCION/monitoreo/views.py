@@ -118,9 +118,9 @@ video_generator = VideoStreamGenerator(camera_manager)
 
 @gzip.gzip_page
 def video_feed(request):
-    generator = VideoStreamGenerator()
+
     return StreamingHttpResponse(
-        generator.generate_frames(),
+        camara_seguridad_stream(),
         content_type='multipart/x-mixed-replace; boundary=frame'
     )
 
