@@ -11,22 +11,32 @@ import os
 MODEL_PATH = "yolov8n-pose.pt"
 VIDEO_PATH =  r"C:\Users\SCARLET CASTILLO\Avances_Proyecto\PROYECTO_CONSTRUCCION\monitoreo\data\robo.avi"
 
-UMBRAL_NORMAL = 3
-UMBRAL_SOSPECHOSO = 7
+# Umbrales ajustados para forcejeo
+UMBRAL_CUERPO = 4
+UMBRAL_BRAZOS = 3
+FRAMES_SOSPECHOSOS = 4  # frames consecutivos
 
-# Carpeta para guardar evidencias
 ALERT_DIR = "media/alertas"
 os.makedirs(ALERT_DIR, exist_ok=True)
 
-# ==============================
+# ==================================================
 # MODELO
-# ==============================
+# ==================================================
 
 model = YOLO(MODEL_PATH)
 
-# ==============================
+# ==================================================
+# FUNCIÓN PARA DETECTAR FORCEJEO (BRAZOS)
+# ==================================================
+
+def movimiento_brazos(curr, prev):
+    # Hombros, codos y muñecas (YOLOv8 Pose)
+    idx = [5, 6, 7, 8, 9, 10]
+    return np.abs(curr[idx] - prev[idx]).mean()
+
+# ==================================================
 # STREAM DE CÁMARA
-# ==============================
+# ==================================================
 
 def camara_seguridad_stream():
 
@@ -37,6 +47,7 @@ def camara_seguridad_stream():
         return
 
     prev_keypoints = []
+    contador_sospecha = []
 
     while True:
         ret, frame = cap.read()
@@ -53,41 +64,46 @@ def camara_seguridad_stream():
         if keypoints is not None:
             current = keypoints.xy.cpu().numpy()
 
-            for i, person_kp in enumerate(current):
+            # Asegurar tamaño del contador
+            while len(contador_sospecha) < len(current):
+                contador_sospecha.append(0)
 
-                # ==============================
-                # ANÁLISIS DE MOVIMIENTO
-                # ==============================
+            for i, curr in enumerate(current):
 
-                tipo_movimiento = "NORMAL"
-                color = (0, 255, 0)  # Verde
+                tipo = "NORMAL"
+                color = (0, 255, 0)
 
                 if i < len(prev_keypoints):
-                    diff = np.abs(person_kp - prev_keypoints[i]).mean()
+                    prev = prev_keypoints[i]
 
-                    if diff > UMBRAL_SOSPECHOSO:
-                        tipo_movimiento = "SOSPECHOSO"
-                        color = (0, 0, 255)  # Rojo
+                    # Movimiento general del cuerpo
+                    diff_cuerpo = np.abs(curr - prev).mean()
 
-                        # 📸 Guardar evidencia
+                    # Movimiento violento de brazos (forcejeo)
+                    diff_brazos = movimiento_brazos(curr, prev)
+
+                    # Acumulación temporal
+                    if diff_cuerpo > UMBRAL_CUERPO or diff_brazos > UMBRAL_BRAZOS:
+                        contador_sospecha[i] += 1
+                    else:
+                        contador_sospecha[i] = max(0, contador_sospecha[i] - 1)
+
+                    # Confirmación de sospecha
+                    if contador_sospecha[i] >= FRAMES_SOSPECHOSOS:
+                        tipo = "SOSPECHOSO"
+                        color = (0, 0, 255)
+
+                        # Guardar evidencia
                         now = datetime.datetime.now()
                         filename = f"alerta_{now.strftime('%Y%m%d_%H%M%S')}.jpg"
                         cv2.imwrite(os.path.join(ALERT_DIR, filename), annotated)
 
-                    elif diff > UMBRAL_NORMAL:
-                        tipo_movimiento = "NORMAL"
-                        color = (0, 255, 0)
-
-                # ==============================
-                # VISUALIZACIÓN
-                # ==============================
-
                 # Posición del texto (cabeza)
-                x, y = int(person_kp[0][0]), int(person_kp[0][1])
+                x, y = int(curr[0][0]), int(curr[0][1])
 
                 cv2.putText(
                     annotated,
-                    tipo_movimiento,
+                    tipo,
                     (x, y - 15),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.9,
@@ -96,7 +112,7 @@ def camara_seguridad_stream():
                 )
 
                 # Dibujar keypoints
-                for kp in person_kp:
+                for kp in curr:
                     cv2.circle(
                         annotated,
                         (int(kp[0]), int(kp[1])),
@@ -107,18 +123,18 @@ def camara_seguridad_stream():
 
         prev_keypoints = current.copy() if keypoints is not None else prev_keypoints
 
-        # ==============================
+        # ==================================================
         # STREAM PARA DJANGO
-        # ==============================
+        # ==================================================
 
-        _, buffer = cv2.imencode('.jpg', annotated)
+        _, buffer = cv2.imencode(".jpg", annotated)
         frame_bytes = buffer.tobytes()
 
         yield (
-            b'--frame\r\n'
-            b'Content-Type: image/jpeg\r\n\r\n' +
+            b"--frame\r\n"
+            b"Content-Type: image/jpeg\r\n\r\n" +
             frame_bytes +
-            b'\r\n'
+            b"\r\n"
         )
 
     cap.release()
