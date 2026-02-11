@@ -1,15 +1,16 @@
+# camara.py
 import cv2
 import numpy as np
 from ultralytics import YOLO
 import datetime
 import os
 
-# ==============================
-# CONFIGURACIÓN
-# ==============================
+# ==================================================
+# CONFIGURACIÓN GENERAL (AJUSTABLE)
+# ==================================================
 
 MODEL_PATH = "yolov8n-pose.pt"
-VIDEO_PATH =  r"C:\Users\SCARLET CASTILLO\Avances_Proyecto\PROYECTO_CONSTRUCCION\monitoreo\data\robo.avi"
+VIDEO_PATH = r"C:\Users\SCARLET CASTILLO\Avances_Proyecto\PROYECTO_CONSTRUCCION\monitoreo\data\robo.avi"
 
 # Umbrales ajustados para forcejeo
 UMBRAL_CUERPO = 4
