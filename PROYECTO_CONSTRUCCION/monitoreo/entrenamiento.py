@@ -11,6 +11,8 @@ import time
 # ==============================
 MODEL_PATH = "yolov8n-pose.pt"
 VIDEO_PATH = r"C:\Users\Edison\Desktop\nuevo2\Avances_Proyecto\PROYECTO_CONSTRUCCION\monitoreo\data\robo.avi"
+VIDEO_PATH2 = r"C:\Users\Edison\Desktop\nuevo2\Avances_Proyecto\PROYECTO_CONSTRUCCION\monitoreo\data\robo2.avi"
+
 
 # Umbrales de velocidad de movimiento corporal
 UMBRAL_MOVIMIENTO_LENTO = 8  # Movimiento normal/caminando
@@ -276,11 +278,220 @@ def camara_seguridad_stream():
                     ids_actualizados.add(len(analizadores) - 1)
                     proximo_id += 1
 
-            # Eliminar analizadores inactivos
-            analizadores = [a for idx, a in enumerate(analizadores) if idx in ids_actualizados]
+            # Eliminar analizadores inactivos y reindexar
+            analizadores_nuevos = [a for idx, a in enumerate(analizadores) if idx in ids_actualizados]
+
+            # Crear mapeo de índices antiguos a nuevos
+            mapeo_indices = {}
+            nuevo_idx = 0
+            for viejo_idx in sorted(ids_actualizados):
+                mapeo_indices[viejo_idx] = nuevo_idx
+                nuevo_idx += 1
+
+            analizadores = analizadores_nuevos
+
+            # Actualizar emparejamientos con nuevos índices
+            emparejamientos_nuevos = {}
+            for idx_actual, idx_analizador_viejo in emparejamientos.items():
+                if idx_analizador_viejo in mapeo_indices:
+                    emparejamientos_nuevos[idx_actual] = mapeo_indices[idx_analizador_viejo]
+
+            emparejamientos = emparejamientos_nuevos
 
             # Visualizar cada persona
             for idx_actual, idx_analizador in emparejamientos.items():
+                if idx_analizador >= len(analizadores):  # Verificación de seguridad
+                    continue
+
+                analizador = analizadores[idx_analizador]
+                kp_persona = kp_actuales[idx_actual]
+
+                # Detectar comportamiento
+                estado, color, velocidad = analizador.detectar_comportamiento()
+
+                # Guardar alerta si es robo o sospechoso
+                if "ROBO" in estado or "SOSPECHOSO" in estado:
+                    if analizador.debe_guardar_alerta(tiempo_actual):
+                        timestamp = datetime.datetime.now()
+                        nombre_archivo = f"alerta_{estado.replace('🚨 ', '').replace('⚠️ ', '').replace(' ', '_')}_{timestamp.strftime('%Y%m%d_%H%M%S')}_ID{analizador.person_id}.jpg"
+                        ruta_completa = os.path.join(ALERT_DIR, nombre_archivo)
+                        cv2.imwrite(ruta_completa, frame_anotado)
+                        print(f"📸 {estado} - Evidencia guardada: {nombre_archivo}")
+
+                # Dibujar información
+                puntos_validos = kp_persona[kp_persona[:, 1] > 0]
+                if len(puntos_validos) > 0:
+                    # Punto superior para texto
+                    punto_superior = puntos_validos[np.argmin(puntos_validos[:, 1])]
+                    x_texto = int(punto_superior[0])
+                    y_texto = int(punto_superior[1]) - 60
+
+                    # Panel de información
+                    cv2.rectangle(frame_anotado, (x_texto - 5, y_texto - 5),
+                                  (x_texto + 280, y_texto + 55), (0, 0, 0), -1)
+                    cv2.rectangle(frame_anotado, (x_texto - 5, y_texto - 5),
+                                  (x_texto + 280, y_texto + 55), color, 3)
+
+                    # Textos
+                    cv2.putText(frame_anotado, f"ID: {analizador.person_id}",
+                                (x_texto + 5, y_texto + 15), cv2.FONT_HERSHEY_SIMPLEX,
+                                0.5, (255, 255, 255), 1)
+                    cv2.putText(frame_anotado, estado,
+                                (x_texto + 5, y_texto + 35), cv2.FONT_HERSHEY_SIMPLEX,
+                                0.65, color, 2)
+                    cv2.putText(frame_anotado, f"Vel: {velocidad:.1f}",
+                                (x_texto + 5, y_texto + 50), cv2.FONT_HERSHEY_SIMPLEX,
+                                0.45, (255, 255, 255), 1)
+
+                    # Dibujar esqueleto
+                    conexiones = [
+                        (5, 6), (5, 7), (7, 9), (6, 8), (8, 10),  # Brazos
+                        (5, 11), (6, 12), (11, 12),  # Torso
+                        (11, 13), (13, 15), (12, 14), (14, 16)  # Piernas
+                    ]
+
+                    for (pt1_idx, pt2_idx) in conexiones:
+                        if pt1_idx < len(kp_persona) and pt2_idx < len(kp_persona):
+                            pt1 = kp_persona[pt1_idx]
+                            pt2 = kp_persona[pt2_idx]
+                            if pt1[0] > 0 and pt2[0] > 0:
+                                cv2.line(frame_anotado,
+                                         (int(pt1[0]), int(pt1[1])),
+                                         (int(pt2[0]), int(pt2[1])),
+                                         color, 2)
+
+                    # Dibujar keypoints
+                    for kp in kp_persona:
+                        if kp[0] > 0:
+                            cv2.circle(frame_anotado, (int(kp[0]), int(kp[1])),
+                                       5, color, -1)
+                            cv2.circle(frame_anotado, (int(kp[0]), int(kp[1])),
+                                       6, (255, 255, 255), 1)
+
+        # Panel de estadísticas
+        tiempo_transcurrido = tiempo_actual - tiempo_inicio
+        fps_actual = contador_frames / tiempo_transcurrido if tiempo_transcurrido > 0 else 0
+        total_alertas = sum(a.total_alertas for a in analizadores)
+
+        # Fondo semi-transparente
+        overlay = frame_anotado.copy()
+        cv2.rectangle(overlay, (10, 10), (350, 120), (0, 0, 0), -1)
+        cv2.addWeighted(overlay, 0.7, frame_anotado, 0.3, 0, frame_anotado)
+
+        # Información del sistema
+        cv2.putText(frame_anotado, f"FPS: {fps_actual:.1f}",
+                    (20, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        cv2.putText(frame_anotado, f"Personas detectadas: {len(analizadores)}",
+                    (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        cv2.putText(frame_anotado, f"Alertas guardadas: {total_alertas}",
+                    (20, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 100, 255), 2)
+        cv2.putText(frame_anotado, f"Frame: {contador_frames}",
+                    (20, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
+
+        # Codificar y enviar frame
+        _, buffer = cv2.imencode('.jpg', frame_anotado,
+                                 [cv2.IMWRITE_JPEG_QUALITY, 90])
+        frame_bytes = buffer.tobytes()
+
+        yield (
+                b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n'
+        )
+
+        # Control de velocidad
+        tiempo_procesamiento = time.time() - inicio_loop
+        tiempo_espera = max(0, delay_frame - tiempo_procesamiento)
+        time.sleep(tiempo_espera)
+
+    cap.release()
+
+
+def camara_seguridad_stream2():
+    cap = cv2.VideoCapture(1)
+
+    if not cap.isOpened():
+        print("❌ ERROR: No se pudo abrir la cámara")
+        return
+
+    # Configurar velocidad de reproducción
+    fps_original = cap.get(cv2.CAP_PROP_FPS)
+    if fps_original == 0:
+        fps_original = 30
+
+    delay_frame = 1.0 / TARGET_FPS
+
+    # Sistema de tracking
+    analizadores = []
+    proximo_id = 0
+    contador_frames = 0
+    tiempo_inicio = time.time()
+
+    print(f"🎥 Sistema de detección de robos iniciado (Cámara)")
+    print(f"📊 Cámara: {fps_original:.1f} FPS → Reproducción: {TARGET_FPS} FPS")
+
+    while True:
+        inicio_loop = time.time()
+
+        ret, frame = cap.read()
+        if not ret:
+            print("❌ Error leyendo frame de cámara")
+            break
+
+        contador_frames += 1
+
+        # Detección con YOLOv8
+        results = model(frame, conf=0.4, verbose=False)
+        frame_anotado = frame.copy()
+        tiempo_actual = time.time()
+
+        # Procesar detecciones
+        keypoints = results[0].keypoints
+
+        if keypoints is not None and len(keypoints.xy) > 0:
+            kp_actuales = keypoints.xy.cpu().numpy()
+
+            # Emparejar con analizadores existentes
+            emparejamientos = emparejar_personas(kp_actuales, analizadores)
+
+            # Actualizar analizadores existentes
+            ids_actualizados = set()
+            for idx_actual, idx_analizador in emparejamientos.items():
+                analizadores[idx_analizador].actualizar(kp_actuales[idx_actual])
+                ids_actualizados.add(idx_analizador)
+
+            # Crear nuevos analizadores
+            for i, kp in enumerate(kp_actuales):
+                if i not in emparejamientos:
+                    analizadores.append(AnalizadorComportamiento(proximo_id))
+                    analizadores[-1].actualizar(kp)
+                    ids_actualizados.add(len(analizadores) - 1)
+                    proximo_id += 1
+
+            # Eliminar analizadores inactivos y reindexar
+            analizadores_nuevos = [a for idx, a in enumerate(analizadores) if idx in ids_actualizados]
+
+            # Crear mapeo de índices antiguos a nuevos
+            mapeo_indices = {}
+            nuevo_idx = 0
+            for viejo_idx in sorted(ids_actualizados):
+                mapeo_indices[viejo_idx] = nuevo_idx
+                nuevo_idx += 1
+
+            analizadores = analizadores_nuevos
+
+            # Actualizar emparejamientos con nuevos índices
+            emparejamientos_nuevos = {}
+            for idx_actual, idx_analizador_viejo in emparejamientos.items():
+                if idx_analizador_viejo in mapeo_indices:
+                    emparejamientos_nuevos[idx_actual] = mapeo_indices[idx_analizador_viejo]
+
+            emparejamientos = emparejamientos_nuevos
+
+            # Visualizar cada persona
+            for idx_actual, idx_analizador in emparejamientos.items():
+                if idx_analizador >= len(analizadores):  # Verificación de seguridad
+                    continue
+
                 analizador = analizadores[idx_analizador]
                 kp_persona = kp_actuales[idx_actual]
 

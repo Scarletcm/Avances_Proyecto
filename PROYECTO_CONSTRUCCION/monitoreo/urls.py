@@ -11,6 +11,7 @@ urlpatterns = [
     
     # Video stream en tiempo real
     path("video/", views.video_feed, name="video_feed"),
+    path("camara/", views.video_feed2, name="video_feed2"),
 
     
     # Dashboard principal

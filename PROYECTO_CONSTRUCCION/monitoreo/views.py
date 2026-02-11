@@ -18,7 +18,7 @@ from .models import TrainingVideo, TrainedModel, DetectionLog, Ubicacion, Alerta
 from .forms import LoginForm, TrainingVideoForm, TrainingBatchForm
 from .services.video_service import CameraManager, VideoStreamGenerator
 from .services.detection_service import detection_service, training_service
-from .entrenamiento import camara_seguridad_stream
+from .entrenamiento import camara_seguridad_stream, camara_seguridad_stream2
 import requests
 from django.shortcuts import render
 from django.utils import timezone
@@ -120,10 +120,15 @@ video_generator = VideoStreamGenerator(camera_manager)
 def video_feed(request):
 
     return StreamingHttpResponse(
+        camara_seguridad_stream2(),
+        content_type='multipart/x-mixed-replace; boundary=frame'
+    )
+def video_feed2(request):
+
+    return StreamingHttpResponse(
         camara_seguridad_stream(),
         content_type='multipart/x-mixed-replace; boundary=frame'
     )
-
 
 from pathlib import Path
 import json

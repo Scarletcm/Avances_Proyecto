@@ -1,3 +1,4 @@
+from sympy.physics.vector import frame
 from ultralytics import YOLO
 from models import Alertas
 from .entrenamiento import camara_seguridad_stream
