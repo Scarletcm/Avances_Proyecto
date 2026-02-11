@@ -6,6 +6,8 @@ import cv2
 import threading
 import time
 from django.utils import timezone
+from .optical_flow_service import OpticalFlowService
+
 
 
 class CameraManager:
@@ -31,18 +33,18 @@ class CameraManager:
         self.current_frame = None
         self._initialized = True
     
-    def get_camera(self, camera_id=0, width=1280, height=720, fps=30):
+    def get_camera(self,  width=1280, height=720, fps=30):
         """Obtiene instancia de cámara con configuración específica"""
         if self.camera is None:
-            self.camera = cv2.VideoCapture(camera_id)
+            self.camera = cv2.VideoCapture(r"C:\Users\Edison\Desktop\nuevo2\Avances_Proyecto\PROYECTO_CONSTRUCCION\monitoreo\data\robo.avi")
             self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
             self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
             self.camera.set(cv2.CAP_PROP_FPS, fps)
         return self.camera
     
-    def capture_frame(self, camera_id=0):
+    def capture_frame(self):
         """Captura un frame de la cámara"""
-        camera = self.get_camera(camera_id)
+        camera = self.get_camera(r"C:\Users\Edison\Desktop\nuevo2\Avances_Proyecto\PROYECTO_CONSTRUCCION\monitoreo\data\robo.avi")
         ret, frame = camera.read()
         
         if ret:
@@ -95,46 +97,55 @@ class CameraManager:
 
 
 class VideoStreamGenerator:
-    """Generador de frames para streaming MJPEG"""
-    
+    """Generador de frames para streaming MJPEG + Optical Flow"""
+
     def __init__(self, camera_manager=None, frame_quality=95):
         self.camera_manager = camera_manager or CameraManager()
         self.frame_quality = frame_quality
         self.fps = 30
         self.frame_delay = 1.0 / self.fps
-    
+        self.optical_flow = OpticalFlowService()
+
     def generate_frames(self):
-        """Genera frames en formato MJPEG"""
         while True:
             try:
                 frame = self.camera_manager.capture_frame()
-                
+
                 if frame is None:
+                    print("⚠️ No se pudo capturar frame")
                     continue
-                
-                # Agregar metadata
+
+                # 🔥 OPTICAL FLOW
+                motion_data = self.optical_flow.process(frame)
+
+                if motion_data and motion_data["motion_level"] > 1.5:
+                    cv2.putText(
+                        frame,
+                        f"Movimiento: {motion_data['motion_level']:.2f}",
+                        (20, 120),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.7,
+                        (0, 0, 255),
+                        2
+                    )
+
                 frame = self.camera_manager.add_metadata(frame)
-                
-                # Codificar a JPEG
-                ret, buffer = cv2.imencode('.jpg', frame, [
-                    cv2.IMWRITE_JPEG_QUALITY, self.frame_quality
-                ])
-                
+
+                ret, buffer = cv2.imencode(
+                    '.jpg', frame,
+                    [cv2.IMWRITE_JPEG_QUALITY, self.frame_quality]
+                )
+
                 if not ret:
                     continue
-                
-                frame_bytes = buffer.tobytes()
-                
-                # Formato MJPEG
+
                 yield (
-                    b'--frame\r\n'
-                    b'Content-Type: image/jpeg\r\n'
-                    b'Content-Length: ' + str(len(frame_bytes)).encode() + b'\r\n\r\n'
-                    + frame_bytes + b'\r\n'
+                        b'--frame\r\n'
+                        b'Content-Type: image/jpeg\r\n\r\n'
+                        + buffer.tobytes() + b'\r\n'
                 )
-                
+
                 time.sleep(self.frame_delay)
-                
+
             except Exception as e:
-                print(f"Error en stream: {str(e)}")
-                continue
+                print("🔥 ERROR STREAM:", e)

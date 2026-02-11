@@ -174,6 +174,19 @@
         border-left-color: var(--success-color);
     }
 
+    /* Mapeo de severidad a clases de CSS */
+    .alert-card[data-severidad="Alta"] {
+        border-left-color: var(--danger-color);
+    }
+
+    .alert-card[data-severidad="Media"] {
+        border-left-color: var(--warning-color);
+    }
+
+    .alert-card[data-severidad="Baja"] {
+        border-left-color: var(--success-color);
+    }
+
     /* Cabecera de la alerta */
     .alert-header {
         display: flex;
@@ -209,6 +222,22 @@
     }
 
     .alert-badge.success {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success-color);
+    }
+
+    /* Mapeo de severidad a badges */
+    .alert-badge[data-severidad="Alta"] {
+        background: rgba(220, 38, 38, 0.1);
+        color: var(--danger-color);
+    }
+
+    .alert-badge[data-severidad="Media"] {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-color);
+    }
+
+    .alert-badge[data-severidad="Baja"] {
         background: rgba(16, 185, 129, 0.1);
         color: var(--success-color);
     }
@@ -294,12 +323,14 @@
         font-weight: 600;
     }
 
-    .severity-indicator.critical {
+    .severity-indicator.critical,
+    .severity-indicator[data-severidad="Alta"] {
         background: rgba(220, 38, 38, 0.1);
         color: var(--danger-color);
     }
 
-    .severity-indicator.high {
+    .severity-indicator.high,
+    .severity-indicator[data-severidad="Media"] {
         background: rgba(245, 158, 11, 0.1);
         color: var(--warning-color);
     }
@@ -309,7 +340,8 @@
         color: var(--secondary-color);
     }
 
-    .severity-indicator.low {
+    .severity-indicator.low,
+    .severity-indicator[data-severidad="Baja"] {
         background: rgba(16, 185, 129, 0.1);
         color: var(--success-color);
     }
@@ -343,7 +375,8 @@
         text-transform: uppercase;
     }
 
-    .status-badge.active {
+    .status-badge.active,
+    .status-badge[data-estado="Activo"] {
         background: rgba(220, 38, 38, 0.1);
         color: var(--danger-color);
     }
@@ -353,7 +386,8 @@
         color: var(--success-color);
     }
 
-    .status-badge.pending {
+    .status-badge.pending,
+    .status-badge[data-estado="Pendiente"] {
         background: rgba(245, 158, 11, 0.1);
         color: var(--warning-color);
     }
@@ -546,346 +580,150 @@
 {% block content %}
 <div class="animate-fade">
     <!-- Barra de herramientas y filtros -->
-    <div class="alerts-toolbar">
-        <div class="filter-group">
-            <label class="filter-label">🔍 Buscar Alerta</label>
-            <input
-                type="text"
-                class="form-input"
-                placeholder="Número de alerta, ubicación..."
-                id="searchInput"
-            >
-        </div>
+    <form method="GET" action="{% url 'monitoreo:alertas' %}">
+        <div class="alerts-toolbar">
+            <div class="filter-group">
+                <label class="filter-label">🔍 Buscar Alerta</label>
+                <input
+                    type="text"
+                    class="form-input"
+                    name="buscar"
+                    placeholder="Número de alerta, ubicación..."
+                    id="searchInput"
+                    value="{{ request.GET.buscar }}"
+                >
+            </div>
 
-        <div class="filter-group">
-            <label class="filter-label">📊 Nivel de Severidad</label>
-            <select class="form-select" id="severityFilter">
-                <option value="">Todos los niveles</option>
-                <option value="critical">🔴 Crítico</option>
-                <option value="high">🟠 Alto</option>
-                <option value="medium">🟡 Medio</option>
-                <option value="low">🟢 Bajo</option>
-            </select>
-        </div>
+            <div class="filter-group">
+                <label class="filter-label">📊 Nivel de Severidad</label>
+                <select class="form-select" id="severityFilter" name="severidad">
+                    <option value="">Todos los niveles</option>
+                    <option value="Alta" {% if request.GET.severidad == 'Alta' %}selected{% endif %}>🔴 Alta</option>
+                    <option value="Media" {% if request.GET.severidad == 'Media' %}selected{% endif %}>🟠 Media</option>
+                    <option value="Baja" {% if request.GET.severidad == 'Baja' %}selected{% endif %}>🟢 Baja</option>
+                </select>
+            </div>
 
-        <div class="filter-group">
-            <label class="filter-label">📍 Estado de Alerta</label>
-            <select class="form-select" id="statusFilter">
-                <option value="">Todos los estados</option>
-                <option value="active">🔴 Activa</option>
-                <option value="resolved">✓ Resuelta</option>
-                <option value="pending">⏳ Pendiente</option>
-            </select>
-        </div>
+            <div class="filter-group">
+                <label class="filter-label">📍 Estado de Alerta</label>
+                <select class="form-select" id="statusFilter" name="estado">
+                    <option value="">Todos los estados</option>
+                    <option value="Activo" {% if request.GET.estado == 'Activo' %}selected{% endif %}>🔴 Activo</option>
+                    <option value="Pendiente" {% if request.GET.estado == 'Pendiente' %}selected{% endif %}>⏳ Pendiente</option>
+                </select>
+            </div>
 
-        <button class="search-btn" onclick="applyFilters()">
-            🔍 Filtrar Alertas
-        </button>
-    </div>
+            <button type="submit" class="search-btn">
+                🔍 Filtrar Alertas
+            </button>
+        </div>
+    </form>
 
     <!-- Resumen de alertas (RF-03: Estado de alertas) -->
     <div class="alerts-summary">
         <div class="summary-card danger">
-            <div class="summary-value">5</div>
-            <div class="summary-label">Alertas Activas</div>
+            <div class="summary-value">{{ estadisticas.alta|default:0 }}</div>
+            <div class="summary-label">Alertas Alta</div>
         </div>
 
         <div class="summary-card warning">
-            <div class="summary-value">12</div>
-            <div class="summary-label">Hoy Generadas</div>
+            <div class="summary-value">{{ estadisticas.media|default:0 }}</div>
+            <div class="summary-label">Alertas Media</div>
         </div>
 
         <div class="summary-card success">
-            <div class="summary-value">8</div>
-            <div class="summary-label">Resueltas (Hoy)</div>
+            <div class="summary-value">{{ estadisticas.baja|default:0 }}</div>
+            <div class="summary-label">Alertas Baja</div>
         </div>
 
         <div class="summary-card">
-            <div class="summary-value">94%</div>
-            <div class="summary-label">Tasa de Respuesta</div>
+            <div class="summary-value">{{ estadisticas.total|default:0 }}</div>
+            <div class="summary-label">Total de Alertas</div>
         </div>
     </div>
 
     <!-- LISTA DE ALERTAS GENERADAS (RF-03) -->
     <div class="alerts-container">
         <div class="alerts-list" id="alertsList">
-            <!-- Alerta 1: Activa - Crítica -->
-            <div class="alert-card">
-                <div class="alert-header">
-                    <div class="alert-title-section">
-                        <span class="alert-badge">Crítica</span>
-                        <div class="alert-title">🚨 Comportamiento sospechoso detectado - ALERTA #001</div>
-                        <div class="alert-time">⏰ Hace 2 minutos | 14:35:22</div>
-                    </div>
-                    <div class="alert-actions">
-                        <button class="action-btn primary" onclick="viewAlertDetails(1)">👁️ Detalles</button>
-                        <button class="action-btn danger" onclick="resolveAlert(1)">✓ Resolver</button>
-                    </div>
-                </div>
-
-                <div class="alert-content">
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">📍 Ubicación:</div>
-                        <div class="alert-detail-value">Avenida Principal, Zona Centro (Cámara #5)</div>
-                    </div>
-
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">🎯 Comportamiento:</div>
-                        <div class="alert-detail-value">Movimiento errático en zona de acceso restringido</div>
-                    </div>
-
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">📊 Severidad:</div>
-                        <div class="alert-detail-value">
-                            <span class="severity-indicator critical">
-                                <span class="severity-dot"></span>
-                                Crítica
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">📈 Confiabilidad:</div>
-                        <div class="alert-detail-value">
-                            <div style="background: var(--border-color); height: 6px; border-radius: 3px; overflow: hidden;">
-                                <div style="background: var(--danger-color); width: 92%; height: 100%;"></div>
+            {% if alerta %}
+                {% for alert in alerta %}
+                <div class="alert-card" data-severidad="{{ alert.severidad }}" data-estado="{{ alert.estado }}">
+                    <div class="alert-header">
+                        <div class="alert-title-section">
+                            <span class="alert-badge" data-severidad="{{ alert.severidad }}">{{ alert.severidad }}</span>
+                            <div class="alert-title">
+                                {% if alert.severidad == "Alta" %}🚨{% elif alert.severidad == "Media" %}⚠️{% else %}ℹ️{% endif %}
+                                {{ alert.comportamiento }} - ALERTA #{{ alert.id|stringformat:"03d" }}
                             </div>
-                            92%
+                            <div class="alert-time">⏰ {{ alert.hora|timesince }} | {{ alert.hora|date:"H:i:s" }}</div>
                         </div>
-                    </div>
-                </div>
-
-                <div class="alert-footer">
-                    <div class="alert-location">
-                        📍 Centro Urbano
-                    </div>
-                    <div class="alert-actions-footer">
-                        <span class="status-badge active">Activa</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Alerta 2: Activa - Alta -->
-            <div class="alert-card warning">
-                <div class="alert-header">
-                    <div class="alert-title-section">
-                        <span class="alert-badge warning">Alta</span>
-                        <div class="alert-title">⚠️ Aproximación furtiva detectada - ALERTA #002</div>
-                        <div class="alert-time">⏰ Hace 15 minutos | 14:20:15</div>
-                    </div>
-                    <div class="alert-actions">
-                        <button class="action-btn primary" onclick="viewAlertDetails(2)">👁️ Detalles</button>
-                        <button class="action-btn danger" onclick="resolveAlert(2)">✓ Resolver</button>
-                    </div>
-                </div>
-
-                <div class="alert-content">
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">📍 Ubicación:</div>
-                        <div class="alert-detail-value">Calle Norte, Zona Comercial (Cámara #8)</div>
-                    </div>
-
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">🎯 Comportamiento:</div>
-                        <div class="alert-detail-value">Acercamiento lento y furtivo a zona con valor comercial</div>
-                    </div>
-
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">📊 Severidad:</div>
-                        <div class="alert-detail-value">
-                            <span class="severity-indicator high">
-                                <span class="severity-dot"></span>
-                                Alta
-                            </span>
+                        <div class="alert-actions">
+                            <button class="action-btn primary" onclick="viewAlertDetails({{ alert.id }})">👁️ Detalles</button>
+                            {% if alert.estado == "Pendiente" %}
+                            <form method="POST" action="{% url 'resolver_alerta' alert.id %}" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="action-btn danger">✓ Resolver</button>
+                            </form>
+                            {% endif %}
                         </div>
                     </div>
 
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">📈 Confiabilidad:</div>
-                        <div class="alert-detail-value">
-                            <div style="background: var(--border-color); height: 6px; border-radius: 3px; overflow: hidden;">
-                                <div style="background: var(--warning-color); width: 78%; height: 100%;"></div>
+                    <div class="alert-content">
+                        <div class="alert-detail">
+                            <div class="alert-detail-label">📍 Ubicación:</div>
+                            <div class="alert-detail-value">
+                                {{ alert.ubicacion.ciudad }}
+                                {% if alert.ubicacion.camara_set.first %}
+                                    (Cámara #{{ alert.ubicacion.camara_set.first.id }})
+                                {% endif %}
                             </div>
-                            78%
                         </div>
-                    </div>
-                </div>
 
-                <div class="alert-footer">
-                    <div class="alert-location">
-                        📍 Zona Comercial
-                    </div>
-                    <div class="alert-actions-footer">
-                        <span class="status-badge active">Activa</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Alerta 3: Resuelta -->
-            <div class="alert-card success">
-                <div class="alert-header">
-                    <div class="alert-title-section">
-                        <span class="alert-badge success">Baja</span>
-                        <div class="alert-title">ℹ️ Actividad anómala reportada - ALERTA #003</div>
-                        <div class="alert-time">⏰ Hace 45 minutos | 13:50:00</div>
-                    </div>
-                    <div class="alert-actions">
-                        <button class="action-btn primary" onclick="viewAlertDetails(3)">👁️ Detalles</button>
-                    </div>
-                </div>
-
-                <div class="alert-content">
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">📍 Ubicación:</div>
-                        <div class="alert-detail-value">Parque Central (Cámara #3)</div>
-                    </div>
-
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">🎯 Comportamiento:</div>
-                        <div class="alert-detail-value">Aglomeración de personas en área sin vigilancia habitual</div>
-                    </div>
-
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">📊 Severidad:</div>
-                        <div class="alert-detail-value">
-                            <span class="severity-indicator low">
-                                <span class="severity-dot" style="animation: none;"></span>
-                                Baja
-                            </span>
+                        <div class="alert-detail">
+                            <div class="alert-detail-label">🎯 Comportamiento:</div>
+                            <div class="alert-detail-value">{{ alert.comportamiento }}</div>
                         </div>
-                    </div>
 
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">📈 Confiabilidad:</div>
-                        <div class="alert-detail-value">
-                            <div style="background: var(--border-color); height: 6px; border-radius: 3px; overflow: hidden;">
-                                <div style="background: var(--success-color); width: 55%; height: 100%;"></div>
+                        {% if alert.descripcion %}
+                        <div class="alert-detail">
+                            <div class="alert-detail-label">📝 Descripción:</div>
+                            <div class="alert-detail-value">{{ alert.descripcion }}</div>
+                        </div>
+                        {% endif %}
+
+                        <div class="alert-detail">
+                            <div class="alert-detail-label">📊 Severidad:</div>
+                            <div class="alert-detail-value">
+                                <span class="severity-indicator" data-severidad="{{ alert.severidad }}">
+                                    <span class="severity-dot"></span>
+                                    {{ alert.severidad }}
+                                </span>
                             </div>
-                            55%
                         </div>
                     </div>
 
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">✓ Resuelto:</div>
-                        <div class="alert-detail-value">Confirmado como evento normal. Personal identificó grupo de trabajadores.</div>
-                    </div>
-                </div>
-
-                <div class="alert-footer">
-                    <div class="alert-location">
-                        📍 Zona Pública
-                    </div>
-                    <div class="alert-actions-footer">
-                        <span class="status-badge resolved">Resuelta</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Alerta 4: Pendiente -->
-            <div class="alert-card info">
-                <div class="alert-header">
-                    <div class="alert-title-section">
-                        <span class="alert-badge info">Media</span>
-                        <div class="alert-title">⏳ Alertas pendiente de revisión - ALERTA #004</div>
-                        <div class="alert-time">⏰ Hace 1 hora | 13:35:45</div>
-                    </div>
-                    <div class="alert-actions">
-                        <button class="action-btn primary" onclick="viewAlertDetails(4)">👁️ Detalles</button>
-                        <button class="action-btn danger" onclick="resolveAlert(4)">✓ Resolver</button>
-                    </div>
-                </div>
-
-                <div class="alert-content">
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">📍 Ubicación:</div>
-                        <div class="alert-detail-value">Estacionamiento Sur (Cámara #12)</div>
-                    </div>
-
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">🎯 Comportamiento:</div>
-                        <div class="alert-detail-value">Manipulación de objetos cerca de vehículos</div>
-                    </div>
-
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">📊 Severidad:</div>
-                        <div class="alert-detail-value">
-                            <span class="severity-indicator medium">
-                                <span class="severity-dot"></span>
-                                Media
-                            </span>
+                    <div class="alert-footer">
+                        <div class="alert-location">
+                            📍 {{ alert.ubicacion.ciudad }}
+                        </div>
+                        <div class="alert-actions-footer">
+                            <span class="status-badge" data-estado="{{ alert.estado }}">{{ alert.estado }}</span>
                         </div>
                     </div>
                 </div>
-
-                <div class="alert-footer">
-                    <div class="alert-location">
-                        📍 Zona de Vehículos
-                    </div>
-                    <div class="alert-actions-footer">
-                        <span class="status-badge pending">Pendiente</span>
-                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">🎉</div>
+                    <h2 class="empty-title">¡No hay alertas!</h2>
+                    <p class="empty-description">No se encontraron alertas con los filtros seleccionados.</p>
                 </div>
-            </div>
-
-            <!-- Alerta 5: Activa -->
-            <div class="alert-card">
-                <div class="alert-header">
-                    <div class="alert-title-section">
-                        <span class="alert-badge">Crítica</span>
-                        <div class="alert-title">🚨 Intento de acceso no autorizado - ALERTA #005</div>
-                        <div class="alert-time">⏰ Hace 3 minutos | 14:32:18</div>
-                    </div>
-                    <div class="alert-actions">
-                        <button class="action-btn primary" onclick="viewAlertDetails(5)">👁️ Detalles</button>
-                        <button class="action-btn danger" onclick="resolveAlert(5)">✓ Resolver</button>
-                    </div>
-                </div>
-
-                <div class="alert-content">
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">📍 Ubicación:</div>
-                        <div class="alert-detail-value">Puerta trasera, Almacén (Cámara #15)</div>
-                    </div>
-
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">🎯 Comportamiento:</div>
-                        <div class="alert-detail-value">Persona intentando abrir puerta de acceso restringido</div>
-                    </div>
-
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">📊 Severidad:</div>
-                        <div class="alert-detail-value">
-                            <span class="severity-indicator critical">
-                                <span class="severity-dot"></span>
-                                Crítica
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="alert-detail">
-                        <div class="alert-detail-label">📈 Confiabilidad:</div>
-                        <div class="alert-detail-value">
-                            <div style="background: var(--border-color); height: 6px; border-radius: 3px; overflow: hidden;">
-                                <div style="background: var(--danger-color); width: 89%; height: 100%;"></div>
-                            </div>
-                            89%
-                        </div>
-                    </div>
-                </div>
-
-                <div class="alert-footer">
-                    <div class="alert-location">
-                        📍 Área Restringida
-                    </div>
-                    <div class="alert-actions-footer">
-                        <span class="status-badge active">Activa</span>
-                    </div>
-                </div>
-            </div>
+            {% endif %}
         </div>
     </div>
 
     <!-- Paginación -->
+    {% if alerta %}
     <div class="pagination">
         <button class="pagination-btn active">1</button>
         <button class="pagination-btn">2</button>
@@ -893,6 +731,7 @@
         <span style="margin: 0 1rem; align-self: center;">...</span>
         <button class="pagination-btn">→</button>
     </div>
+    {% endif %}
 </div>
 
 <!-- Modal de detalles de alerta -->
@@ -921,74 +760,34 @@
      * Visualización de alertas generadas con estado
      */
 
-    function applyFilters() {
-        const searchText = document.getElementById('searchInput').value.toLowerCase();
-        const severity = document.getElementById('severityFilter').value;
-        const status = document.getElementById('statusFilter').value;
-
-        console.log(`Filtros aplicados - Búsqueda: ${searchText}, Severidad: ${severity}, Estado: ${status}`);
-        alert(`Filtros aplicados:\nBúsqueda: ${searchText}\nSeveridad: ${severity || 'Todas'}\nEstado: ${status || 'Todos'}`);
-    }
+    // Datos de alertas desde Django
+    const alertasData = {
+        {% for alert in alerta %}
+        {{ alert.id }}: {
+            title: 'ALERTA #{{ alert.id|stringformat:"03d" }} - {{ alert.comportamiento }}',
+            tipo: '{{ alert.severidad }}',
+            ubicacion: '{{ alert.ubicacion.nombre }}{% if alert.ubicacion.camara_set.first %} (Cámara #{{ alert.ubicacion.camara_set.first.id }}){% endif %}',
+            comportamiento: '{{ alert.comportamiento }}',
+            timestamp: '{{ alert.hora|date:"H:i:s" }}',
+            fecha: '{{ alert.hora|date:"d/m/Y" }}',
+            estado: '{{ alert.estado }}',
+            descripcion: '{{ alert.descripcion|default:"Sin descripción adicional" }}'
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    };
 
     /**
      * Ver detalles de una alerta
      */
     function viewAlertDetails(alertId) {
         const modal = document.getElementById('detailsModal');
-        const alertDetails = {
-            1: {
-                title: 'ALERTA #001 - Comportamiento sospechoso',
-                tipo: 'Crítica',
-                ubicacion: 'Avenida Principal, Zona Centro (Cámara #5)',
-                comportamiento: 'Movimiento errático en zona de acceso restringido',
-                confiabilidad: '92%',
-                timestamp: '14:35:22',
-                respuesta: 'Pendiente de respuesta del personal de monitoreo',
-                detalles: 'El sistema detectó un patrón de movimiento anómalo. La persona se mueve de manera errática cerca de una zona restringida. Se recomienda respuesta inmediata.'
-            },
-            2: {
-                title: 'ALERTA #002 - Aproximación furtiva',
-                tipo: 'Alta',
-                ubicacion: 'Calle Norte, Zona Comercial (Cámara #8)',
-                comportamiento: 'Acercamiento lento y furtivo',
-                confiabilidad: '78%',
-                timestamp: '14:20:15',
-                respuesta: 'Pendiente de verificación en campo',
-                detalles: 'Se detectó aproximación cautelosa a zona de valor comercial. Personal de monitoreo debe verificar.'
-            },
-            3: {
-                title: 'ALERTA #003 - Actividad anómala',
-                tipo: 'Baja',
-                ubicacion: 'Parque Central (Cámara #3)',
-                comportamiento: 'Aglomeración de personas',
-                confiabilidad: '55%',
-                timestamp: '13:50:00',
-                respuesta: '✓ Resuelta - Evento normal',
-                detalles: 'Confirmado como evento normal. Personal identificó grupo de trabajadores en actividad de mantenimiento.'
-            },
-            4: {
-                title: 'ALERTA #004 - Manipulación de objetos',
-                tipo: 'Media',
-                ubicacion: 'Estacionamiento Sur (Cámara #12)',
-                comportamiento: 'Manipulación de objetos cerca de vehículos',
-                confiabilidad: '65%',
-                timestamp: '13:35:45',
-                respuesta: 'Pendiente de revisión',
-                detalles: 'Actividad sospechosa cercana a vehículos. Requiere revisión visual.'
-            },
-            5: {
-                title: 'ALERTA #005 - Intento de acceso',
-                tipo: 'Crítica',
-                ubicacion: 'Puerta trasera, Almacén (Cámara #15)',
-                comportamiento: 'Intento de abrir puerta restringida',
-                confiabilidad: '89%',
-                timestamp: '14:32:18',
-                respuesta: 'Requiere respuesta inmediata',
-                detalles: 'Sistema detectó intento de acceso no autorizado. Se recomienda activación de protocolo de emergencia.'
-            }
-        };
+        const alert = alertasData[alertId];
 
-        const alert = alertDetails[alertId];
+        if (!alert) {
+            console.error('Alerta no encontrada:', alertId);
+            return;
+        }
+
         const modalBody = document.getElementById('modalBody');
 
         modalBody.innerHTML = `
@@ -1008,23 +807,18 @@
             </div>
 
             <div class="alert-detail">
-                <div class="alert-detail-label">📈 Confiabilidad:</div>
-                <div class="alert-detail-value">${alert.confiabilidad}</div>
-            </div>
-
-            <div class="alert-detail">
                 <div class="alert-detail-label">⏰ Hora de Detección:</div>
-                <div class="alert-detail-value">${alert.timestamp}</div>
+                <div class="alert-detail-value">${alert.timestamp} - ${alert.fecha}</div>
             </div>
 
             <div class="alert-detail">
                 <div class="alert-detail-label">📋 Descripción:</div>
-                <div class="alert-detail-value">${alert.detalles}</div>
+                <div class="alert-detail-value">${alert.descripcion}</div>
             </div>
 
             <div class="alert-detail">
                 <div class="alert-detail-label">✓ Estado:</div>
-                <div class="alert-detail-value">${alert.respuesta}</div>
+                <div class="alert-detail-value">${alert.estado}</div>
             </div>
         `;
 
@@ -1040,32 +834,31 @@
     }
 
     /**
-     * Resolver alerta
-     */
-    function resolveAlert(alertId) {
-        if (confirm(`¿Marcar ALERTA #${String(alertId).padStart(3, '0')} como resuelta?`)) {
-            alert('✓ Alerta marcada como resuelta.\nRegistro actualizado en la base de datos (RF-05).');
-        }
-    }
-
-    /**
      * Resolver alerta desde modal
      */
     function resolveAlertModal() {
         alert('✓ Alerta resuelta correctamente.');
         closeModal();
+        location.reload();
     }
 
     // Inicializar
     document.addEventListener('DOMContentLoaded', function() {
         console.log('Panel de Alertas inicializado');
         console.log('RF-03: Generar alerta automática - Panel de visualización activo');
-        updateNotificationBadge(5);
+        console.log('Total de alertas cargadas:', Object.keys(alertasData).length);
     });
 
     // Cerrar modal al presionar Escape
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') {
+            closeModal();
+        }
+    });
+
+    // Cerrar modal al hacer clic fuera
+    document.getElementById('detailsModal').addEventListener('click', function(event) {
+        if (event.target === this) {
             closeModal();
         }
     });

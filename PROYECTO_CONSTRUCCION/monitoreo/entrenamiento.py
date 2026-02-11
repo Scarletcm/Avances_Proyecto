@@ -1,170 +1,78 @@
+# camara.py
 import cv2
-import mediapipe as mp
 import numpy as np
-from sklearn.neighbors import KNeighborsClassifier
+from ultralytics import YOLO
 
-# =========================
-# MediaPipe
-# =========================
-mp_pose = mp.solutions.pose
-mp_draw = mp.solutions.drawing_utils
+# ⭐ Modelo de pose corporal
+model = YOLO("yolov8n-pose.pt")
 
-pose_image = mp_pose.Pose(
-    static_image_mode=True,
-    model_complexity=2,
-    min_detection_confidence=0.5
-)
+def camara_seguridad_stream():
 
-pose_video = mp_pose.Pose(
-    static_image_mode=False,
-    model_complexity=1,
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.5
-)
+    cap = cv2.VideoCapture(
+        r"C:\Users\maxxi\OneDrive\Escritorio\Proyecto\Avances_Proyecto\PROYECTO_CONSTRUCCION\monitoreo\data\robo.avi"
+    )
 
-# =========================
-# Dataset (Machine Learning)
-# =========================
-X = []  # vectores de pose (132)
-y = []  # etiquetas
+    if not cap.isOpened():
+        print("ERROR: No se pudo abrir el video")
+        return
 
-LABEL_POSE_CORRECTA = 0
-LABEL_POSE_INCORRECTA = 1
+    prev_keypoints = None
 
-labels_map = {
-    0: "POSE CORRECTA",
-    1: "POSE INCORRECTA"
-}
+    while True:
+        ret, frame = cap.read()
 
-# =========================
-# Modelo ML
-# =========================
-model = KNeighborsClassifier(n_neighbors=3)
-trained = False
+        if not ret:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            continue
 
-# =========================
-# Funciones
-# =========================
-def extract_keypoints(results):
-    """Convierte landmarks en vector ML"""
-    if not results.pose_landmarks:
-        return None
+        # ⭐ Detección de pose
+        results = model(frame, conf=0.3)
 
-    keypoints = []
-    for lm in results.pose_landmarks.landmark:
-        keypoints.extend([lm.x, lm.y, lm.z, lm.visibility])
+        annotated = results[0].plot()
 
-    return np.array(keypoints)
+        # ⭐ Extraer keypoints
+        keypoints = results[0].keypoints
 
-def load_reference_pose(image_path):
-    """Carga pose referencia desde imagen"""
-    img = cv2.imread(image_path)
-    if img is None:
-        print("❌ Imagen no encontrada")
-        return None
+        movimiento_detectado = False
 
-    rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    results = pose_image.process(rgb)
+        if keypoints is not None:
+            current = keypoints.xy.cpu().numpy()
 
-    if not results.pose_landmarks:
-        print("❌ No se detectó pose en la imagen")
-        return None
+            if prev_keypoints is not None:
 
-    print("✅ Pose referencia cargada")
+                # Ajustar tamaño si cambia número de personas
+                min_len = min(len(current), len(prev_keypoints))
 
-    mp_draw.draw_landmarks(img, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
-    cv2.imshow("Pose Referencia", img)
-    cv2.waitKey(1500)
-    cv2.destroyAllWindows()
+                if min_len > 0:
+                    diff = np.abs(current[:min_len] - prev_keypoints[:min_len]).mean()
 
-    return extract_keypoints(results)
+                    # 🔥 Umbral de movimiento (ajustable)
+                    if diff > 4:
+                        movimiento_detectado = True
 
-def train_model():
-    global trained
-    if len(X) >= 3:
-        model.fit(X, y)
-        trained = True
-        print("🔥 MODELO ENTRENADO")
+            prev_keypoints = current
 
-def predict_pose(keypoints):
-    pred = model.predict([keypoints])[0]
-    prob = model.predict_proba([keypoints])[0]
-    confidence = np.max(prob)
-    return pred, confidence
+        # ⭐ Mostrar alerta visual
+        if movimiento_detectado:
+            cv2.putText(
+                annotated,
+                "MOVIMIENTO CORPORAL DETECTADO",
+                (30, 40),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 0, 255),
+                3
+            )
 
-# =========================
-# Cargar POSE REFERENCIA
-# =========================
-ref_pose = load_reference_pose("data/img.png")
+        # ⭐ Enviar al stream
+        _, buffer = cv2.imencode('.jpg', annotated)
+        frame_bytes = buffer.tobytes()
 
-if ref_pose is not None:
-    X.append(ref_pose)
-    y.append(LABEL_POSE_CORRECTA)
-    train_model()
-
-# =========================
-# Webcam
-# =========================
-cap = cv2.VideoCapture(0)
-
-print("""
-INSTRUCCIONES:
-S = Guardar pose correcta
-I = Guardar pose incorrecta
-ESC = Salir
-""")
-
-while cap.isOpened():
-    ret, frame = cap.read()
-    if not ret:
-        break
-
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = pose_video.process(rgb)
-
-    keypoints = extract_keypoints(results)
-
-    if results.pose_landmarks:
-        mp_draw.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
-
-    key = cv2.waitKey(1) & 0xFF
-
-    # Guardar ejemplos
-    if key == ord('s') and keypoints is not None:
-        X.append(keypoints)
-        y.append(LABEL_POSE_CORRECTA)
-        train_model()
-        print("✔ Pose correcta guardada")
-
-    if key == ord('i') and keypoints is not None:
-        X.append(keypoints)
-        y.append(LABEL_POSE_INCORRECTA)
-        train_model()
-        print("✔ Pose incorrecta guardada")
-
-    # Predicción
-    if trained and keypoints is not None:
-        pred, conf = predict_pose(keypoints)
-
-        if conf > 0.8:
-            text = f"{labels_map[pred]} ({conf:.2f})"
-            color = (0, 255, 0)
-        elif conf > 0.6:
-            text = f"CASI IGUAL ({conf:.2f})"
-            color = (0, 255, 255)
-        else:
-            text = f"NO COINCIDE ({conf:.2f})"
-            color = (0, 0, 255)
-
-        cv2.putText(
-            frame, text, (20, 40),
-            cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2
+        yield (
+            b'--frame\r\n'
+            b'Content-Type: image/jpeg\r\n\r\n' +
+            frame_bytes +
+            b'\r\n'
         )
 
-    cv2.imshow("Comparacion de Pose (IA)", frame)
-
-    if key == 27:
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+    cap.release()
